@@ -512,7 +512,7 @@ class FaqQuestion(models.Model):
     question = Translate
 
     answer_de = models.TextField(verbose_name=_("answer (german)"))
-    answer_en = models.TextField(verbose_name=_("answer (german)"))
+    answer_en = models.TextField(verbose_name=_("answer (english)"))
     answer = Translate
 
     class Meta:
