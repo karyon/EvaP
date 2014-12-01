@@ -34,7 +34,7 @@
                     {{ user.username }}
                 </td>
                 <td class="minimize-with-padding">
-                    {% if user.is_staff %}
+                    {% if user.staff_group %}
                         <span class="label label-primary">{% trans "Student Representative" %}</span>
                     {% endif %}
                     {% if user.is_external %}
@@ -43,7 +43,7 @@
                     {% if user.is_contributor %}
                         <span class="label label-info">{% trans "Contributor" %}</span>
                     {% endif %}
-                    {% if user.is_responsible %}
+                    {% if user.resp_contr %}
                         <span class="label label-info">{% trans "Responsible" %}</span>
                     {% endif %}
                     {% if user.login_key %}

@@ -1,4 +1,6 @@
+from django.db.models import Prefetch
 from django.contrib import messages
+from django.contrib.auth.models import Group
 from django.core.cache import cache
 from django.core.exceptions import PermissionDenied
 from django.forms.models import inlineformset_factory, modelformset_factory
@@ -53,7 +55,8 @@ def semester_view(request, semester_id):
 
     rewards_active = is_semester_activated(semester)
 
-    courses = semester.course_set.all()
+    courses = semester.course_set.prefetch_related(Prefetch("contributions", Contribution.objects.filter(responsible=True), to_attr="responsible_contributions")).all()
+    print courses[0].responsible_contributions[0].contributor
     courses_by_state = []
     for state in STATES_ORDERED.keys():
         this_courses = [course for course in courses if course.state == state]
@@ -565,9 +568,12 @@ def questionnaire_delete(request, questionnaire_id):
 
 @fsr_required
 def user_index(request):
-    users = UserProfile.objects.order_by("last_name", "first_name", "username").prefetch_related('contributions', 'groups')
+    users = UserProfile.objects.order_by("last_name", "first_name", "username")\
+        .prefetch_related('contributions', Prefetch('groups', Group.objects.filter(name="Staff"), to_attr="staff_group"), 
+            Prefetch("contributions", Contribution.objects.filter(responsible=True), to_attr="resp_contr"))
 
     return render(request, "fsr_user_index.html", dict(users=users))
+
 
 
 @fsr_required
