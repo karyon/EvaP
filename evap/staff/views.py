@@ -7,6 +7,7 @@ from collections import OrderedDict
 from django.utils.translation import ugettext as _
 from django.utils.translation import get_language
 from django.http import HttpResponse
+from django.db.models import Prefetch
 
 from evap.evaluation.auth import staff_required
 from evap.evaluation.models import Contribution, Course, Question, Questionnaire, Semester, \
@@ -52,7 +53,8 @@ def semester_view(request, semester_id):
 
     rewards_active = is_semester_activated(semester)
 
-    courses = semester.course_set.all()
+    courses = semester.course_set.prefetch_related(
+        Prefetch("contributions__contributor", queryset=Contribution.objects.filter(responsible=True), to_attr="responsible_contributorasdf")).all()
     courses_by_state = []
     for state in STATES_ORDERED.keys():
         this_courses = [course for course in courses if course.state == state]

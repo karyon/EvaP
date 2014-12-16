@@ -270,10 +270,6 @@ class Course(models.Model):
         return self.contributions.get(responsible=True).contributor
 
     @property
-    def responsible_contributors_name(self):
-        return self.responsible_contributor.full_name
-
-    @property
     def responsible_contributors_username(self):
         return self.responsible_contributor.username
 
@@ -627,7 +623,12 @@ class UserProfile(AbstractBaseUser, PermissionsMixin):
 
     @property
     def is_staff(self):
-        return self.groups.filter(name='Staff').exists()
+        # use a prefetched groups list, if available.
+        # taken from: https://stackoverflow.com/questions/19649370/django-can-you-tell-if-a-related-field-has-been-prefetched-without-fetching-it
+        try:
+            return "Staff" in self._prefetched_objects_cache[self.groups.prefetch_cache_name]
+        except (AttributeError, KeyError):
+            return self.groups.filter(name='Staff').exists()
 
     @property
     def can_staff_delete(self):
