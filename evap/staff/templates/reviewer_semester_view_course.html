@@ -1,0 +1,31 @@
+{% load morefilters %}
+
+<td style="width: 55%">
+    <div>
+        {{ course.name }}
+    </div>
+    <div class="course-contributor">
+        {{ course.responsible_contributor.full_name }}
+    </div>
+    {% for degree in course.degrees.all %}
+        <span class="label label-default">{{ degree }}</span>
+    {% endfor %}
+    <span class="label label-default">{{ course.type }}</span>
+    <span class="label label-default">{% if course.is_graded %}{% trans "graded" %}{% else %}{% trans "not graded" %}{% endif %}</span>
+    <span class="label label-default">{% if course.is_private %}{% trans "private" %}{% endif %}</span>
+</td>
+<td style="width: 15%">
+    {{ course.vote_start_date|date:"SHORT_DATE_FORMAT" }}{% if not course.is_single_result %} - {{ course.vote_end_date|date:"SHORT_DATE_FORMAT" }}{% endif %}
+    {% if course.state == "in_evaluation" %}<span class="label label-warning">{% trans "Evaluation running" %}</span>{% endif %}
+</td>
+<td style="width: 30%" class="multi-progress-bar">
+    {% if course.num_textanswers > 0 %}
+        {% include "progress_bar.html" with done=course.num_reviewed_textanswers total=course.num_textanswers icon="comment" %}
+    {% else %}
+        <span data-toggle="tooltip" data-placement="left" title="{% trans "Text answers" %}">
+            <span class="glyphicon glyphicon-comment"></span>
+            <span>{{ course.num_textanswers }}</span>
+        </span>
+        <br />
+    {% endif %}
+</td>

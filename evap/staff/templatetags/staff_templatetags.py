@@ -8,3 +8,8 @@ register = Library()
 @register.inclusion_tag("staff_semester_menu.html")
 def include_staff_semester_menu():
     return dict(semesters=Semester.objects.all()[:5])
+
+
+@register.inclusion_tag("reviewer_semester_menu.html")
+def include_reviewer_semester_menu():
+    return dict(semesters=Semester.objects.all()[:5])

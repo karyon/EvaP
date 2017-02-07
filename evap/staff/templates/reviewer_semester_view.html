@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% load morefilters %}
+
+{% block title %}
+    {{ semester.name }} - {% trans "Review" %} -
+    {{ block.super }}
+{% endblock %}
+
+{% block breadcrumb %}
+    {{ block.super }}
+    <li>{% trans "Review" %}</li>
+    <li>{{ semester.name }}</li>
+{% endblock %}
+
+{% block content %}
+    {{ block.super }}
+    <h3>{{ semester.name }} &ndash; {% trans "Review text answers" %}</h3>
+
+    <div class="panel panel-default">
+        <div class="panel-heading">
+            <div class="panel-title">
+                {% trans "Courses" %}
+            </div>
+        </div>
+        <div class="panel-body">
+            <table class="table table-hover vertically-aligned">
+                <tbody>
+                    {% for course in courses %}
+                        <tr class="anchor-tr" data-href="{% url "staff:course_comments" semester.id course.id %}">
+                            {% include "reviewer_semester_view_course.html" with semester=semester course=course %}
+                        </tr>
+                    {% empty %}
+                        <i>{% trans "There are no courses to review in this semester." %}</i>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% endblock %}
+
+{% block additional_javascript %}
+    <script type="text/javascript">
+        $(".anchor-tr").click(function() {
+            window.location = $(this).data("href");
+        });
+    </script>
+{% endblock %}

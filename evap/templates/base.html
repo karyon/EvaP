@@ -92,6 +92,15 @@
                             </li>
                         {% endif %}
 
+                        {% if user.is_reviewer %}
+                            <li class="dropdown">
+                                <a class="dropdown-toggle" data-toggle="dropdown" href="">{% trans "Review" %} <b class="caret"></b></a>
+                                <ul class="dropdown-menu">
+                                    {% include_reviewer_semester_menu %}
+                                </ul>
+                            </li>
+                        {% endif %}
+
                         <li class="dropdown">
                             <a class="dropdown-toggle" data-toggle="dropdown" href="{% url "results:index" %}">{% trans "Results" %} <b class="caret"></b></a>
                             <ul class="dropdown-menu">

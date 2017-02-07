@@ -29,6 +29,7 @@ urlpatterns = [
     url(r"^semester/(\d+)/course/(\d+)/comment/(\d+)/edit$", course_comment_edit, name="course_comment_edit"),
     url(r"^semester/(\d+)/courseoperation$", semester_course_operation, name="semester_course_operation"),
     url(r"^semester/(\d+)/singleresult/create$", single_result_create, name="single_result_create"),
+    url(r"^semester/(\d+)/review$", semester_review, name="semester_review"),
 
     url(r"^semester/delete$", semester_delete, name="semester_delete"),
     url(r"^semester/archive$", semester_archive, name="semester_archive"),

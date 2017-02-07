@@ -132,6 +132,19 @@ def semester_view(request, semester_id):
     return render(request, "staff_semester_view.html", template_data)
 
 
+@reviewer_required
+def semester_review(request, semester_id):
+    semester = get_object_or_404(Semester, id=semester_id)
+    courses = semester.course_set.filter(state__in=['in_evaluation', 'evaluated'])
+    courses = sorted(courses, key=lambda cr: cr.name)
+
+    template_data = dict(
+        semester=semester,
+        courses=courses,
+    )
+    return render(request, "reviewer_semester_view.html", template_data)
+
+
 @staff_required
 def semester_course_operation(request, semester_id):
     semester = get_object_or_404(Semester, id=semester_id)
