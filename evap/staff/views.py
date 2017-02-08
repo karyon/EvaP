@@ -71,7 +71,7 @@ def get_courses_with_prefetched_data(semester):
     return courses
 
 
-@staff_required
+@reviewer_required
 def semester_view(request, semester_id):
     semester = get_object_or_404(Semester, id=semester_id)
     rewards_active = is_semester_activated(semester)
@@ -127,7 +127,8 @@ def semester_view(request, semester_id):
         rewards_active=rewards_active,
         grades_downloadable=grades_downloadable,
         num_courses=len(courses),
-        degree_stats=degree_stats
+        degree_stats=degree_stats,
+        only_reviewer=request.user.is_reviewer and not request.user.is_staff
     )
     return render(request, "staff_semester_view.html", template_data)
 
