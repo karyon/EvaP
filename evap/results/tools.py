@@ -167,8 +167,23 @@ def _calculate_results_impl(course):
     return sections
 
 
-def calculate_average_grades_and_deviation(course):
+def get_caching_blob():
+    cache_key = 'evap.results.tools.calculate_average_grades_and_deviation'
+    return cache.get(cache_key, dict())
+
+def set_caching_blob(blob):
+    cache_key = 'evap.results.tools.calculate_average_grades_and_deviation'
+    cache.set(cache_key, blob)
+
+
+def calculate_average_grades_and_deviation(course, caching_blob=None):
     """Determines the final average grade and deviation for a course."""
+
+    if caching_blob is not None:
+        cached_result = caching_blob.get(course.id, None)
+        if cached_result is not None:
+            return cached_result
+
     avg_generic_likert = []
     avg_contribution_likert = []
     dev_generic_likert = []
@@ -201,6 +216,10 @@ def calculate_average_grades_and_deviation(course):
 
     final_avg = mix(final_grade_avg, final_likert_avg, settings.GRADE_PERCENTAGE)
     final_dev = mix(final_grade_dev, final_likert_dev, settings.GRADE_PERCENTAGE)
+
+
+    caching_blob[course.id] = (final_avg, final_dev)
+    set_caching_blob(caching_blob)
 
     return final_avg, final_dev
 

@@ -1,12 +1,15 @@
 from collections import OrderedDict, namedtuple
 
+from django.core.cache import cache
+from django.db.models import Prefetch
 from django.core.exceptions import PermissionDenied
 from django.shortcuts import get_object_or_404, render
 from django.contrib.auth.decorators import login_required
 
 from evap.evaluation.models import Semester, Degree, Contribution
 from evap.evaluation.auth import internal_required
-from evap.results.tools import calculate_results, calculate_average_grades_and_deviation, TextResult, RatingResult, HeadingResult, COMMENT_STATES_REQUIRED_FOR_VISIBILITY
+from evap.results.tools import calculate_results, calculate_average_grades_and_deviation, TextResult, RatingResult, \
+                               COMMENT_STATES_REQUIRED_FOR_VISIBILITY, get_caching_blob
 
 
 @internal_required
@@ -19,17 +22,46 @@ def index(request):
 @internal_required
 def semester_detail(request, semester_id):
     semester = get_object_or_404(Semester, id=semester_id)
+
+    visible_states = ['published']
     if request.user.is_reviewer:
-        courses = list(semester.course_set.filter(state__in=["in_evaluation", "evaluated", "reviewed", "published"]).prefetch_related("degrees"))
-    else:
-        courses = list(semester.course_set.filter(state="published").prefetch_related("degrees"))
+        visible_states += ['in_evaluation', 'evaluated', 'reviewed']
+
+    courses = semester.course_set.filter(state__in=visible_states)
+
+    courses = courses.select_related('type')
+    courses = courses.prefetch_related(
+        "degrees",
+        Prefetch("contributions", queryset=Contribution.objects.filter(responsible=True).select_related("contributor"), to_attr="responsible_contributions")
+    )
 
     courses = [course for course in courses if course.can_user_see_course(request.user)]
 
-    # Annotate each course object with its grades.
     for course in courses:
-        course.avg_grade, course.avg_deviation = calculate_average_grades_and_deviation(course)
+        course.responsible_contributors = [contribution.contributor for contribution in course.responsible_contributions]
 
+
+    import time
+    start = time.time()
+    # Annotate each course object with its grades.
+    blob = get_caching_blob()
+    for course in courses:
+        course.avg_grade, course.avg_deviation = calculate_average_grades_and_deviation(course, blob)
+
+    # cache_key = 'evap.results.views.semester_detail-{:d}'.format(semester.id)
+    # resultsblob = cache.get(cache_key, dict())
+    #
+    # for course in courses:
+    #     if course.id not in resultsblob:
+    #         resultsblob[course.id] = calculate_average_grades_and_deviation(course)
+    #     course.avg_grade, course.avg_deviation = resultsblob[course.id]
+    #
+    # cache.set(cache_key, resultsblob)
+
+
+
+    end = time.time()
+    print(end-start)
     CourseTuple = namedtuple('CourseTuple', ('courses', 'single_results'))
 
     courses_by_degree = OrderedDict()
