@@ -318,7 +318,7 @@ class Course(models.Model, metaclass=LocalizeModelBase):
             return self.can_user_see_course(user)
         return False
 
-    @property
+    @cached_property
     def is_single_result(self):
         # early return to save some queries
         if self.vote_start_datetime.date() != self.vote_end_date:
