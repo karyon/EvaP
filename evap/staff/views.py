@@ -68,6 +68,8 @@ def get_courses_with_prefetched_data(semester):
 
 @reviewer_required
 def semester_view(request, semester_id):
+    from time import time
+    start = time()
     semester = get_object_or_404(Semester, id=semester_id)
     rewards_active = is_semester_activated(semester)
     grades_downloadable = are_grades_activated(semester)
@@ -118,7 +120,9 @@ def semester_view(request, semester_id):
         num_courses=len(courses),
         degree_stats=degree_stats
     )
-    return render(request, "staff_semester_view.html", template_data)
+    result = render(request, "staff_semester_view.html", template_data)
+    print(time()-start)
+    return result
 
 
 @staff_required
