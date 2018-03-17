@@ -23,13 +23,17 @@ COMMENT_STATES_REQUIRED_FOR_VISIBILITY = [TextAnswer.PRIVATE, TextAnswer.PUBLISH
 
 
 # see calculate_results
-ResultSection = namedtuple('ResultSection', ('questionnaire', 'contributor', 'label', 'results', 'warning'))
 CommentSection = namedtuple('CommentSection', ('questionnaire', 'contributor', 'label', 'is_responsible', 'results'))
 RatingResult = namedtuple('RatingResult', ('question', 'total_count', 'average', 'deviation', 'counts', 'warning'))
 YesNoResult = namedtuple('YesNoResult', ('question', 'total_count', 'average', 'deviation', 'counts', 'warning', 'approval_count'))
 TextResult = namedtuple('TextResult', ('question', 'answers'))
 HeadingResult = namedtuple('HeadingResult', ('question'))
 
+ContributionResult = namedtuple('ContributionResult', ('contributor', 'label', 'questionnaire_results'))
+QuestionnaireResult = namedtuple('QuestionnaireResult', ('questionnaire', 'question_results', 'warning'))
+
+
+CommentSection__ = namedtuple('CommentSection', ('questionnaire', 'contributor', 'label', 'is_responsible', 'results'))
 
 def avg(iterable):
     """Simple arithmetic average function. Returns `None` if the length of
@@ -120,55 +124,56 @@ def _calculate_results_impl(course):
     deviation for that section (or None). The result elements are either
     `RatingResult` or `TextResult` instances."""
 
-    # there will be one section per relevant questionnaire--contributor pair
-    sections = []
 
     # calculate the median values of how many people answered a questionnaire type (lecturer, tutor, ...)
     questionnaire_med_answers = defaultdict(list)
     questionnaire_max_answers = {}
+    for contribution in course.contributions.all():
+        for questionnaire in contribution.questionnaires.all():
+            max_answers = max([get_number_of_answers(contribution, question) for question in questionnaire.rating_questions], default=0)
+            questionnaire_max_answers[(questionnaire, contribution)] = max_answers
+            questionnaire_med_answers[questionnaire].append(max_answers)
+            
     questionnaire_warning_thresholds = {}
-    for questionnaire, contribution in questionnaires_and_contributions(course):
-        max_answers = max([get_number_of_answers(contribution, question) for question in questionnaire.rating_questions], default=0)
-        questionnaire_max_answers[(questionnaire, contribution)] = max_answers
-        questionnaire_med_answers[questionnaire].append(max_answers)
     for questionnaire, max_answers in questionnaire_med_answers.items():
         questionnaire_warning_thresholds[questionnaire] = max(settings.RESULTS_WARNING_PERCENTAGE * median(max_answers), settings.RESULTS_WARNING_COUNT)
 
-    for questionnaire, contribution in questionnaires_and_contributions(course):
-        # will contain one object per question
-        results = []
-        for question in questionnaire.question_set.all():
-            if question.is_rating_question:
-                answer_counters = get_answers(contribution, question)
-                answers = get_answers_from_answer_counters(answer_counters)
+    contribution_results = []
+    for contribution in course.contributions.all():
+        questionnaire_results = []
+        for questionnaire in contribution.questionnaires.all():
+            question_results = []
+            for question in questionnaire.question_set.all():
+                if question.is_rating_question:
+                    answer_counters = get_answers(contribution, question)
+                    answers = get_answers_from_answer_counters(answer_counters)
 
-                total_count = len(answers)
-                average = avg(answers) if total_count > 0 else None
-                deviation = pstdev(answers, average) if total_count > 0 else None
-                counts = get_counts(question, answer_counters)
-                warning = total_count > 0 and total_count < questionnaire_warning_thresholds[questionnaire]
+                    total_count = len(answers)
+                    average = avg(answers) if total_count > 0 else None
+                    deviation = pstdev(answers, average) if total_count > 0 else None
+                    counts = get_counts(question, answer_counters)
+                    warning = total_count > 0 and total_count < questionnaire_warning_thresholds[questionnaire]
 
-                if question.is_yes_no_question:
-                    if question.is_positive_yes_no_question:
-                        approval_count = counts[1]
+                    if question.is_yes_no_question:
+                        approval_count = counts[1] if question.is_positive_yes_no_question else counts[5]
+                        question_results.append(YesNoResult(question, total_count, average, deviation, counts, warning, approval_count))
                     else:
-                        approval_count = counts[5]
-                    results.append(YesNoResult(question, total_count, average, deviation, counts, warning, approval_count))
-                else:
-                    results.append(RatingResult(question, total_count, average, deviation, counts, warning))
+                        question_results.append(RatingResult(question, total_count, average, deviation, counts, warning))
 
-            elif question.is_text_question:
-                answers = get_textanswers(contribution, question, COMMENT_STATES_REQUIRED_FOR_VISIBILITY)
-                results.append(TextResult(question=question, answers=answers))
+                elif question.is_text_question:
+                    answers = get_textanswers(contribution, question, COMMENT_STATES_REQUIRED_FOR_VISIBILITY)
+                    question_results.append(TextResult(question=question, answers=answers))
 
-            elif question.is_heading_question:
-                results.append(HeadingResult(question=question))
+                elif question.is_heading_question:
+                    question_results.append(HeadingResult(question=question))
 
-        section_warning = questionnaire_max_answers[(questionnaire, contribution)] < questionnaire_warning_thresholds[questionnaire]
+            questionnaire_warning = questionnaire_max_answers[(questionnaire, contribution)] < questionnaire_warning_thresholds[questionnaire]
 
-        sections.append(ResultSection(questionnaire, contribution.contributor, contribution.label, results, section_warning))
+            questionnaire_results.append(QuestionnaireResult(questionnaire, question_results, questionnaire_warning))
 
-    return sections
+        contribution_results.append(ContributionResult(contribution.contributor, contribution.label, questionnaire_results))
+
+    return contribution_results
 
 
 def calculate_average_grades_and_deviation(course):
@@ -182,16 +187,17 @@ def calculate_average_grades_and_deviation(course):
     dev_generic_grade = []
     dev_contribution_grade = []
 
-    for __, contributor, __, results, __ in calculate_results(course):
-        average_likert = avg([result.average for result in results if result.question.is_likert_question])
-        deviation_likert = avg([result.deviation for result in results if result.question.is_likert_question])
-        average_grade = avg([result.average for result in results if result.question.is_grade_question])
-        deviation_grade = avg([result.deviation for result in results if result.question.is_grade_question])
+    for contributor, __, questionnaire_results in calculate_results(course):
+        for __, question_results, __ in questionnaire_results:
+            average_likert = avg([result.average for result in question_results if result.question.is_likert_question])
+            deviation_likert = avg([result.deviation for result in question_results if result.question.is_likert_question])
+            average_grade = avg([result.average for result in question_results if result.question.is_grade_question])
+            deviation_grade = avg([result.deviation for result in question_results if result.question.is_grade_question])
 
-        (avg_contribution_likert if contributor else avg_generic_likert).append(average_likert)
-        (dev_contribution_likert if contributor else dev_generic_likert).append(deviation_likert)
-        (avg_contribution_grade if contributor else avg_generic_grade).append(average_grade)
-        (dev_contribution_grade if contributor else dev_generic_grade).append(deviation_grade)
+            (avg_contribution_likert if contributor else avg_generic_likert).append(average_likert)
+            (dev_contribution_likert if contributor else dev_generic_likert).append(deviation_likert)
+            (avg_contribution_grade if contributor else avg_generic_grade).append(average_grade)
+            (dev_contribution_grade if contributor else dev_generic_grade).append(deviation_grade)
 
     # the final total grade will be calculated by the following formula (GP = GRADE_PERCENTAGE, CP = CONTRIBUTION_PERCENTAGE):
     # final_likert = CP * likert_answers_about_persons + (1-CP) * likert_answers_about_courses

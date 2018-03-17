@@ -41,8 +41,8 @@ def semester_detail(request, semester_id):
     for course in courses:
         if course.is_single_result:
             for degree in course.degrees.all():
-                section = calculate_results(course)[0]
-                result = section.results[0]
+                questionnaire_result = calculate_results(course)[0][0]
+                result = questionnaire_result.question_results[0]
                 courses_by_degree[degree].single_results.append((course, result))
         else:
             for degree in course.degrees.all():
@@ -60,7 +60,7 @@ def course_detail(request, semester_id, course_id):
     if not course.can_user_see_results(request.user):
         raise PermissionDenied
 
-    sections = calculate_results(course)
+    contribution_results = calculate_results(course)
 
     if request.user.is_reviewer:
         public_view = request.GET.get('public_view') != 'false'  # if parameter is not given, show public view.
@@ -77,48 +77,52 @@ def course_detail(request, semester_id, course_id):
     show_grades = request.user.is_reviewer or course.can_publish_grades
 
     # filter text answers
-    for section in sections:
-        results = []
-        for result in section.results:
-            if isinstance(result, TextResult):
-                answers = [answer for answer in result.answers if user_can_see_text_answer(request.user, represented_users, answer, public_view)]
-                if answers:
-                    results.append(TextResult(question=result.question, answers=answers))
-            else:
-                results.append(result)
-        section.results[:] = results
+    for contribution_result in contribution_results:
+        for questionnaire_result in contribution_result.questionnaire_results:
+            results = []
+            for result in questionnaire_result.question_results:
+                if isinstance(result, TextResult):
+                    answers = [answer for answer in result.answers if user_can_see_text_answer(request.user, represented_users, answer, public_view)]
+                    if answers:
+                        results.append(TextResult(question=result.question, answers=answers))
+                else:
+                    results.append(result)
+            questionnaire_result.question_results[:] = results
 
     # filter empty headings
-    for section in sections:
-        filtered_results = []
-        for index in range(len(section.results)):
-            result = section.results[index]
-            # filter out if there are no more questions or the next question is also a heading question
-            if isinstance(result, HeadingResult):
-                if index == len(section.results) - 1 or isinstance(section.results[index + 1], HeadingResult):
-                    continue
-            filtered_results.append(result)
-        section.results[:] = filtered_results
+    for contribution_result in contribution_results:
+        for questionnaire_result in contribution_result.questionnaire_results:
+            filtered_results = []
+            question_results = questionnaire_result.question_results
+            for index in range(len(question_results)):
+                result = question_results[index]
+                # filter out if there are no more questions or the next question is also a heading question
+                if isinstance(result, HeadingResult):
+                    if index == len(question_results) - 1 or isinstance(question_results[index + 1], HeadingResult):
+                        continue
+                filtered_results.append(result)
+            question_results[:] = filtered_results
 
-    # remove empty sections
-    sections = [section for section in sections if section.results]
+    # remove empty contribution_results
+    for contribution_result in contribution_results:
+        contribution_result.questionnaire_results[:] = [q for q in contribution_result.questionnaire_results if q]
 
     # group by contributor
-    course_sections = []
-    contributor_sections = OrderedDict()
-    for section in sections:
-        if not section.results:
-            continue
-        if section.contributor is None:
-            course_sections.append(section)
+    # TODO unfuck
+    course_questionnaire_results = []
+    contributor_results = []
+    for contribution_result in contribution_results:
+        if contribution_result.contributor is None:
+            course_questionnaire_results = contribution_result.questionnaire_results
         else:
-            contributor_sections.setdefault(section.contributor, []).append(section)
+            contributor_results.append(contribution_result)
 
-    for contributor, sections in contributor_sections.items():
-        counts_as_vote = lambda question_result: isinstance(question_result, TextResult) or isinstance(question_result, (RatingResult, YesNoResult)) and show_grades
-        has_votes = any(counts_as_vote(result) for result in section.results for section in sections)
-        contributor_sections[contributor] = dict(sections=contributor_sections[contributor], has_votes=has_votes)
-
+    has_votes = []
+    for contributor_result in contributor_results:
+        def counts_as_vote(question_result):
+            return isinstance(question_result, TextResult) or isinstance(question_result, (RatingResult, YesNoResult)) and show_grades
+        has_votes.append(any(any(counts_as_vote(question_result) for question_result in questionnaire_result.question_results) for questionnaire_result in contributor_result.questionnaire_results))
+        
     # Show a warning if course is still in evaluation (for reviewer preview).
     evaluation_warning = course.state != 'published'
 
@@ -131,8 +135,8 @@ def course_detail(request, semester_id, course_id):
 
     template_data = dict(
             course=course,
-            course_sections=course_sections,
-            contributor_sections=contributor_sections,
+            course_questionnaire_results=course_questionnaire_results,
+            contributor_results=zip(contributor_results, has_votes),
             evaluation_warning=evaluation_warning,
             sufficient_votes_warning=sufficient_votes_warning,
             show_grades=show_grades,

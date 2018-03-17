@@ -45,9 +45,10 @@ class TestCalculateResults(TestCase):
 
         results = calculate_results(course)
 
-        self.assertEqual(len(results), 1)
-        self.assertEqual(len(results[0].results), 1)
-        result = results[0].results[0]
+        self.assertEqual(len(results), 2)
+        self.assertEqual(len(results[1]), 1)
+        self.assertEqual(len(results[1][0].question_results), 1)
+        result = (results[1][0].question_results[0])
 
         self.assertEqual(result.total_count, 150)
         self.assertAlmostEqual(result.average, float(109) / 30)
@@ -68,10 +69,10 @@ class TestCalculateResults(TestCase):
 
         merge_users(main_user, contributor)
 
-        results = calculate_results(course)
+        contribution_results = calculate_results(course)
 
-        for section in results:
-            self.assertTrue(Contribution.objects.filter(course=course, contributor=section.contributor).exists())
+        for contribution_result in contribution_results:
+            self.assertTrue(Contribution.objects.filter(course=course, contributor=contribution_result.contributor).exists())
 
     def test_answer_counting(self):
         contributor1 = mommy.make(UserProfile)
