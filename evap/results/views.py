@@ -112,16 +112,12 @@ def course_detail(request, semester_id, course_id):
         if section.contributor is None:
             course_sections.append(section)
         else:
-            contributor_sections.setdefault(section.contributor,
-                                            {'total_votes': 0, 'sections': []})['sections'].append(section)
+            contributor_sections.setdefault(section.contributor, []).append(section)
 
-            for result in section.results:
-                if isinstance(result, TextResult):
-                    contributor_sections[section.contributor]['total_votes'] += 1
-                elif isinstance(result, RatingResult) or isinstance(result, YesNoResult):
-                    # Only count rating results if we show the grades.
-                    if show_grades:
-                        contributor_sections[section.contributor]['total_votes'] += result.total_count
+    for contributor, sections in contributor_sections.items():
+        counts_as_vote = lambda question_result: isinstance(question_result, TextResult) or isinstance(question_result, (RatingResult, YesNoResult)) and show_grades
+        has_votes = any(counts_as_vote(result) for result in section.results for section in sections)
+        contributor_sections[contributor] = dict(sections=contributor_sections[contributor], has_votes=has_votes)
 
     # Show a warning if course is still in evaluation (for reviewer preview).
     evaluation_warning = course.state != 'published'
