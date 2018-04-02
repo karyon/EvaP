@@ -79,36 +79,25 @@ def course_detail(request, semester_id, course_id):
     # filter text answers
     for contribution_result in contribution_results:
         for questionnaire_result in contribution_result.questionnaire_results:
-            results = []
-            for result in questionnaire_result.question_results:
-                if isinstance(result, TextResult):
-                    answers = [answer for answer in result.answers if user_can_see_text_answer(request.user, represented_users, answer, public_view)]
-                    if answers:
-                        results.append(TextResult(question=result.question, answers=answers))
-                else:
-                    results.append(result)
-            questionnaire_result.question_results[:] = results
+            for question_results in questionnaire_result.question_results:
+                if isinstance(question_results, TextResult):
+                    result.answers[:] = [answer for answer in question_results.answers if user_can_see_text_answer(request.user, represented_users, answer, public_view)]
 
     # filter empty headings
     for contribution_result in contribution_results:
         for questionnaire_result in contribution_result.questionnaire_results:
-            filtered_results = []
             question_results = questionnaire_result.question_results
-            for index in range(len(question_results)):
-                result = question_results[index]
-                # filter out if there are no more questions or the next question is also a heading question
-                if isinstance(result, HeadingResult):
-                    if index == len(question_results) - 1 or isinstance(question_results[index + 1], HeadingResult):
-                        continue
-                filtered_results.append(result)
-            question_results[:] = filtered_results
+            for index in reversed(range(lenquestion_results())):
+                if (isinstance(result, TextResult) and len(result.answers) == 0 or
+                        isinstance(result, HeadingResult) and (index == len(question_results) - 1 or isinstance(question_results[index + 1], HeadingResult))):
+                    del question_results[index]
+                    continue
 
     # remove empty contribution_results
     for contribution_result in contribution_results:
         contribution_result.questionnaire_results[:] = [q for q in contribution_result.questionnaire_results if q]
 
     # group by contributor
-    # TODO unfuck
     course_questionnaire_results = []
     contributor_results = []
     for contribution_result in contribution_results:
@@ -117,12 +106,13 @@ def course_detail(request, semester_id, course_id):
         else:
             contributor_results.append(contribution_result)
 
-    has_votes = []
-    for contributor_result in contributor_results:
-        def counts_as_vote(question_result):
-            return isinstance(question_result, TextResult) or isinstance(question_result, (RatingResult, YesNoResult)) and show_grades
-        has_votes.append(any(any(counts_as_vote(question_result) for question_result in questionnaire_result.question_results) for questionnaire_result in contributor_result.questionnaire_results))
-        
+    def contributor_has_votes(contributor_results):
+        for questionnaire_result in contributor_result.questionnaire_results:
+             for question_result in questionnaire_result.question_results:
+                 if isinstance(question_result, TextResult) or isinstance(question_result, (RatingResult, YesNoResult)) and show_grades
+                    return True
+    has_votes = map(contributor_has_votes, contributor_results)
+
     # Show a warning if course is still in evaluation (for reviewer preview).
     evaluation_warning = course.state != 'published'
 
