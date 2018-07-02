@@ -6,10 +6,11 @@ from collections import OrderedDict, defaultdict
 
 from django.conf import settings
 from django.contrib import messages
+from django.contrib.auth.models import Group
 from django.core.exceptions import PermissionDenied, SuspiciousOperation
 from django.dispatch import receiver
 from django.db import IntegrityError, transaction
-from django.db.models import BooleanField, Case, Count, ExpressionWrapper, IntegerField, Prefetch, Q, Sum, When
+from django.db.models import Count, Prefetch, Q, Exists, OuterRef
 from django.forms import formset_factory
 from django.forms.models import inlineformset_factory, modelformset_factory
 from django.http import HttpResponse, HttpResponseRedirect
@@ -1127,14 +1128,11 @@ def user_index(request):
         users = UserProfile.objects.all()
 
     users = (users
-        # the following six annotations basically add three bools indicating whether each user is part of a group or not.
-        .annotate(staff_group_count=Sum(Case(When(groups__name="Staff", then=1), output_field=IntegerField())))
-        .annotate(is_staff=ExpressionWrapper(Q(staff_group_count__exact=1), output_field=BooleanField()))
-        .annotate(reviewer_group_count=Sum(Case(When(groups__name="Reviewer", then=1), output_field=IntegerField())))
-        .annotate(is_reviewer=ExpressionWrapper(Q(reviewer_group_count__exact=1), output_field=BooleanField()))
-        .annotate(grade_publisher_group_count=Sum(Case(When(groups__name="Grade publisher", then=1), output_field=IntegerField())))
-        .annotate(is_grade_publisher=ExpressionWrapper(Q(grade_publisher_group_count__exact=1), output_field=BooleanField()))
-        .prefetch_related('contributions', 'courses_participating_in', 'courses_participating_in__semester', 'represented_users', 'ccing_users'))
+        .annotate(is_staff=Exists(Group.objects.filter(name='Staff', user=OuterRef('pk'))))
+        .annotate(is_reviewer=Exists(Group.objects.filter(name='Reviewer', user=OuterRef('pk'))))
+        .annotate(is_grade_publisher=Exists(Group.objects.filter(name='Grade publisher', user=OuterRef('pk'))))
+        .prefetch_related('contributions', 'courses_participating_in', 'courses_participating_in__semester', 'represented_users', 'ccing_users')
+    )
 
     return render(request, "staff_user_index.html", dict(users=users, filter_users=filter_users))
 
