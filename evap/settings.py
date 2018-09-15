@@ -17,7 +17,7 @@ BASE_DIR = os.path.dirname(os.path.realpath(__file__))
 
 ### Debugging
 
-DEBUG = True
+DEBUG = False
 
 # Very helpful but eats a lot of performance on sql-heavy pages.
 # Works only with DEBUG = True and Django's development server (so no apache).
@@ -94,43 +94,49 @@ SECRET_KEY = 'k9-)vh3c_dtm6bpi7j(!*s_^91v0!ekjt_#o&0i$e22tnn^-vb'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',  # postgresql', 'mysql', 'sqlite3' or 'oracle'.
-        'NAME': 'evap',  # Or path to database file if using sqlite3.
-        'USER': 'postgres',                              # Not used with sqlite3.
+        'ENGINE': 'django.db.backends.sqlite3',  # postgresql', 'mysql', 'sqlite3' or 'oracle'.
+        'NAME': os.path.join(BASE_DIR, 'database.sqlite3'),  # Or path to database file if using sqlite3.
+        'USER': '',                              # Not used with sqlite3.
         'PASSWORD': '',                          # Not used with sqlite3.
         'HOST': '',                              # Set to empty string for localhost. Not used with sqlite3.
         'PORT': '',                              # Set to empty string for default. Not used with sqlite3.
-        'CONN_MAX_AGE': 600,
+        'CONN_MAX_AGE': 600,                              # Set to empty string for default. Not used with sqlite3.
+        # 'TEST': {
+        #     'NAME': 'mytestdatabase',
+        # },
     }
 }
 
+from django.db.backends.signals import connection_created
+def activate_foreign_keys(sender, connection, **kwargs):
+    """Enable integrity constraint with sqlite."""
+    if connection.vendor == 'sqlite':
+        cursor = connection.cursor()
+        cursor.execute('PRAGMA synchronous=NORMAL;')
+        # cursor.execute('PRAGMA journal_mode=WAL;')
+        cursor.execute('PRAGMA cache_size=-20000;')
+
+connection_created.connect(activate_foreign_keys)
+
 CACHES = {
     'default': {
-        'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': 'redis://127.0.0.1:6379/0',
+        'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
+        'LOCATION': 'default_cache',
         'OPTIONS': {
-            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
             'MAX_ENTRIES': 5000
         }
     },
     'results': {
-        'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': 'redis://127.0.0.1:6379/1',
+        'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
+        'LOCATION': 'results_cache',
         'TIMEOUT': None,  # is always invalidated manually
         'OPTIONS': {
-            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
             'MAX_ENTRIES': 100000
         }
     },
-    'sessions': {
-        'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': 'redis://127.0.0.1:6379/2',
-        'OPTIONS': {
-            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-            'MAX_ENTRIES': 5000
-        }
-    },
 }
+
+SESSION_ENGINE = "django.contrib.sessions.backends.cache"
 
 CONTACT_EMAIL = "webmaster@localhost"
 
@@ -254,9 +260,6 @@ LOGIN_REDIRECT_URL = '/'
 
 LOGIN_URL = "/"
 
-SESSION_ENGINE = "django.contrib.sessions.backends.cache"
-SESSION_CACHE_ALIAS = "sessions"
-
 SESSION_SAVE_EVERY_REQUEST = True
 SESSION_COOKIE_AGE = 60 * 60 * 24 * 365  # one year
 
@@ -312,7 +315,7 @@ STATIC_ROOT = os.path.join(BASE_DIR, "static_collected")
 
 # django-compressor settings
 COMPRESS_ENABLED = not DEBUG
-COMPRESS_OFFLINE = False
+COMPRESS_OFFLINE = not DEBUG
 COMPRESS_PRECOMPILERS = (
     ('text/x-scss', 'sass {infile} {outfile}'),
 )
@@ -370,22 +373,6 @@ TESTING = 'test' in sys.argv
 if TESTING:
     COMPRESS_PRECOMPILERS = ()  # disable django-compressor
     logging.disable(logging.CRITICAL)  # disable logging, primarily to prevent console spam
-    # use the database for caching. it's properly reset between tests in constrast to redis,
-    # and does not change behaviour in contrast to disabling the cache entirely.
-    CACHES = {
-        'default': {
-            'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
-            'LOCATION': 'testing_cache_default',
-        },
-        'results': {
-            'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
-            'LOCATION': 'testing_cache_results',
-        },
-        'sessions': {
-            'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
-            'LOCATION': 'testing_cache_sessions',
-        },
-    }
     # give random char field values a reasonable length
     from model_mommy import random_gen
     MOMMY_CUSTOM_FIELDS_GEN = {'django.db.models.CharField': lambda: random_gen.gen_string(20)}

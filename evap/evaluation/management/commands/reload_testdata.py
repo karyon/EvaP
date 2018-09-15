@@ -35,6 +35,9 @@ class Command(BaseCommand):
         self.stdout.write('Executing "python manage.py loaddata test_data"')
         call_command("loaddata", "test_data")
 
+        self.stdout.write('Executing "python manage.py createcachetable"')
+        call_command("createcachetable")
+
         self.stdout.write('Executing "python manage.py clear_cache"')
         call_command("clear_cache")
 

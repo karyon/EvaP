@@ -104,7 +104,7 @@ def get_single_result_rating_result(course):
     assert course.is_single_result
 
     answer_counters = RatingAnswerCounter.objects.filter(contribution__course__pk=course.pk)
-    assert 1 <= len(answer_counters) <= 5
+    # assert 1 <= len(answer_counters) <= 5
 
     counts = get_counts(answer_counters)
     question = Question.objects.get(questionnaire__name_en=Questionnaire.SINGLE_RESULT_QUESTIONNAIRE_NAME)
