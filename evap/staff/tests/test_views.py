@@ -352,15 +352,18 @@ class TestSemesterView(WebTest):
             course=mommy.make(Course, name_de="B", name_en="A", semester=cls.semester))
 
     def test_view_list_sorting(self):
-        page = self.app.get(self.url, user='manager', extra_environ={'HTTP_ACCEPT_LANGUAGE': 'en'}).body.decode("utf-8")
-        position_evaluation1 = page.find("Evaluation 1")
-        position_evaluation2 = page.find("Evaluation 2")
-        self.assertGreater(position_evaluation1, position_evaluation2)
-
-        page = self.app.get(self.url, user='manager', extra_environ={'HTTP_ACCEPT_LANGUAGE': 'de'}).body.decode("utf-8")
+        UserProfile.objects.filter(username='manager').update(language='de')
+        page = self.app.get(self.url, user='manager').body.decode("utf-8")
         position_evaluation1 = page.find("Evaluation 1")
         position_evaluation2 = page.find("Evaluation 2")
         self.assertLess(position_evaluation1, position_evaluation2)
+        self.app.reset() # language is only loaded on login, so we're forcing a re-login here
+
+        UserProfile.objects.filter(username='manager').update(language='en')
+        page = self.app.get(self.url, user='manager').body.decode("utf-8")
+        position_evaluation1 = page.find("Evaluation 1")
+        position_evaluation2 = page.find("Evaluation 2")
+        self.assertGreater(position_evaluation1, position_evaluation2)
 
     def test_access_to_semester_with_archived_results(self):
         mommy.make(UserProfile, username='reviewer', groups=[Group.objects.get(name='Reviewer')])
