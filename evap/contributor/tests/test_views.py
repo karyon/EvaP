@@ -3,7 +3,7 @@ from django.core import mail
 from django_webtest import WebTest
 from model_mommy import mommy
 
-from evap.evaluation.models import Course, UserProfile, Contribution
+from evap.evaluation.models import Course, UserProfile, Contribution, TextanswerVisibility
 from evap.evaluation.tests.tools import WebTestWith200Check, create_course_with_responsible_and_editor
 
 TESTING_COURSE_ID = 2
@@ -18,7 +18,7 @@ class TestContributorDirectDelegationView(WebTest):
 
         cls.responsible = mommy.make(UserProfile)
         cls.non_responsible = mommy.make(UserProfile, email="a@b.c")
-        mommy.make(Contribution, course=cls.course, contributor=cls.responsible, can_edit=True, responsible=True, textanswer_visibility=Contribution.GENERAL_TEXTANSWERS)
+        mommy.make(Contribution, course=cls.course, contributor=cls.responsible, can_edit=True, responsible=True, textanswer_visibility=TextanswerVisibility.GENERAL)
 
     def test_direct_delegation_request(self):
         data = {"delegate_to": self.non_responsible.id}

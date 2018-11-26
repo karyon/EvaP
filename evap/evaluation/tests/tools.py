@@ -6,7 +6,7 @@ from django.utils import timezone
 from django_webtest import WebTest
 from model_mommy import mommy
 
-from evap.evaluation.models import Contribution, Course, UserProfile, Questionnaire, Degree
+from evap.evaluation.models import Contribution, Course, UserProfile, Questionnaire, Degree, TextanswerVisibility
 from evap.student.tools import question_id
 
 
@@ -79,7 +79,7 @@ def create_course_with_responsible_and_editor(course_id=None):
 
     course = mommy.make(Course, **course_params)
 
-    mommy.make(Contribution, course=course, contributor=contributor, can_edit=True, responsible=True, questionnaires=[mommy.make(Questionnaire, type=Questionnaire.CONTRIBUTOR)], textanswer_visibility=Contribution.GENERAL_TEXTANSWERS)
+    mommy.make(Contribution, course=course, contributor=contributor, can_edit=True, responsible=True, questionnaires=[mommy.make(Questionnaire, type=Questionnaire.CONTRIBUTOR)], textanswer_visibility=TextanswerVisibility.GENERAL)
     mommy.make(Contribution, course=course, contributor=editor, can_edit=True, questionnaires=[mommy.make(Questionnaire, type=Questionnaire.CONTRIBUTOR)])
     course.general_contribution.questionnaires.set([mommy.make(Questionnaire, type=Questionnaire.TOP)])
 

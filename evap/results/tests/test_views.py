@@ -7,7 +7,7 @@ from django_webtest import WebTest
 from model_mommy import mommy
 
 from evap.evaluation.models import Contribution, Course, Degree, Question, Questionnaire, RatingAnswerCounter, \
-    Semester, UserProfile
+    Semester, UserProfile, TextanswerVisibility
 from evap.evaluation.tests.tools import WebTestWith200Check, let_user_vote_for_course
 from evap.results.views import get_courses_with_prefetched_data
 
@@ -89,7 +89,7 @@ class TestResultsSemesterCourseDetailView(WebTestWith200Check):
         # Normal course with responsible and contributor.
         cls.course = mommy.make(Course, id=21, state='published', semester=cls.semester)
 
-        mommy.make(Contribution, course=cls.course, contributor=responsible, can_edit=True, responsible=True, textanswer_visibility=Contribution.GENERAL_TEXTANSWERS)
+        mommy.make(Contribution, course=cls.course, contributor=responsible, can_edit=True, responsible=True, textanswer_visibility=TextanswerVisibility.GENERAL)
         cls.contribution = mommy.make(Contribution, course=cls.course, contributor=contributor, can_edit=True)
 
     def test_questionnaire_ordering(self):
@@ -242,8 +242,8 @@ class TestResultsSemesterCourseDetailViewPrivateCourse(WebTest):
         degree = mommy.make(Degree)
         private_course = mommy.make(Course, state='published', is_private=True, semester=semester, participants=[student, student_external, test1, test2], voters=[test1, test2], degrees=[degree])
         private_course.general_contribution.questionnaires.set([mommy.make(Questionnaire)])
-        mommy.make(Contribution, course=private_course, contributor=responsible, can_edit=True, responsible=True, textanswer_visibility=Contribution.GENERAL_TEXTANSWERS)
-        mommy.make(Contribution, course=private_course, contributor=other_responsible, can_edit=True, responsible=True, textanswer_visibility=Contribution.GENERAL_TEXTANSWERS)
+        mommy.make(Contribution, course=private_course, contributor=responsible, can_edit=True, responsible=True, textanswer_visibility=TextanswerVisibility.GENERAL)
+        mommy.make(Contribution, course=private_course, contributor=other_responsible, can_edit=True, responsible=True, textanswer_visibility=TextanswerVisibility.GENERAL)
         mommy.make(Contribution, course=private_course, contributor=contributor, can_edit=True)
 
         url = '/results/'
@@ -492,11 +492,11 @@ class TestResultsOtherContributorsListOnExportView(WebTest):
         cls.course.general_contribution.questionnaires.set([questionnaire])
 
         responsible = mommy.make(UserProfile, username='responsible')
-        mommy.make(Contribution, course=cls.course, contributor=responsible, questionnaires=[questionnaire], can_edit=True, responsible=True, textanswer_visibility=Contribution.GENERAL_TEXTANSWERS)
+        mommy.make(Contribution, course=cls.course, contributor=responsible, questionnaires=[questionnaire], can_edit=True, responsible=True, textanswer_visibility=TextanswerVisibility.GENERAL)
         cls.other_contributor_1 = mommy.make(UserProfile, username='other contributor 1')
-        mommy.make(Contribution, course=cls.course, contributor=cls.other_contributor_1, questionnaires=[questionnaire], textanswer_visibility=Contribution.OWN_TEXTANSWERS)
+        mommy.make(Contribution, course=cls.course, contributor=cls.other_contributor_1, questionnaires=[questionnaire], textanswer_visibility=TextanswerVisibility.OWN)
         cls.other_contributor_2 = mommy.make(UserProfile, username='other contributor 2')
-        mommy.make(Contribution, course=cls.course, contributor=cls.other_contributor_2, questionnaires=[questionnaire], textanswer_visibility=Contribution.OWN_TEXTANSWERS)
+        mommy.make(Contribution, course=cls.course, contributor=cls.other_contributor_2, questionnaires=[questionnaire], textanswer_visibility=TextanswerVisibility.OWN)
 
     def test_contributor_list(self):
         url = '/results/semester/{}/course/{}?view=export'.format(self.semester.id, self.course.id)
@@ -685,7 +685,7 @@ class TestArchivedResults(WebTest):
 
         cls.course = mommy.make(Course, state='published', semester=cls.semester, participants=[student, student_external], voters=[student, student_external], degrees=[mommy.make(Degree)])
         cls.course.general_contribution.questionnaires.set([mommy.make(Questionnaire)])
-        cls.contribution = mommy.make(Contribution, course=cls.course, can_edit=True, responsible=True, textanswer_visibility=Contribution.GENERAL_TEXTANSWERS, contributor=responsible)
+        cls.contribution = mommy.make(Contribution, course=cls.course, can_edit=True, responsible=True, textanswer_visibility=TextanswerVisibility.GENERAL, contributor=responsible)
         cls.contribution = mommy.make(Contribution, course=cls.course, contributor=contributor)
 
     @patch('evap.results.templatetags.results_templatetags.get_grade_color', new=lambda x: (0, 0, 0))

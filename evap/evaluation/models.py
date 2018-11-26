@@ -1,4 +1,5 @@
 from datetime import datetime, date, timedelta
+from enum import IntEnum
 import logging
 import random
 import uuid
@@ -640,14 +641,20 @@ def log_state_transition(instance, name, source, target, **_kwargs):
     logger.info('Course "{}" (id {}) moved from state "{}" to state "{}", caused by transition "{}".'.format(instance, instance.pk, source, target, name))
 
 
+class TextanswerVisibility(IntEnum):
+    OWN = 0
+    GENERAL = 1
+
+
 class Contribution(models.Model):
     """A contributor who is assigned to a course and his questionnaires."""
+
 
     OWN_TEXTANSWERS = 'OWN'
     GENERAL_TEXTANSWERS = 'GENERAL'
     TEXTANSWER_VISIBILITY_CHOICES = (
-        (OWN_TEXTANSWERS, _('Own')),
-        (GENERAL_TEXTANSWERS, _('Own and general')),
+        (TextanswerVisibility.OWN, _('Own')),
+        (TextanswerVisibility.GENERAL, _('Own and general')),
     )
     IS_CONTRIBUTOR = 'CONTRIBUTOR'
     IS_EDITOR = 'EDITOR'
@@ -663,7 +670,7 @@ class Contribution(models.Model):
     questionnaires = models.ManyToManyField(Questionnaire, verbose_name=_("questionnaires"), blank=True, related_name="contributions")
     responsible = models.BooleanField(verbose_name=_("responsible"), default=False)
     can_edit = models.BooleanField(verbose_name=_("can edit"), default=False)
-    textanswer_visibility = models.CharField(max_length=10, choices=TEXTANSWER_VISIBILITY_CHOICES, verbose_name=_('text answer visibility'), default=OWN_TEXTANSWERS)
+    textanswer_visibility = models.IntegerField(choices=TEXTANSWER_VISIBILITY_CHOICES, verbose_name=_('text answer visibility'), default=TextanswerVisibility.OWN)
     label = models.CharField(max_length=255, blank=True, null=True, verbose_name=_("label"))
 
     order = models.IntegerField(verbose_name=_("contribution order"), default=-1)
@@ -677,7 +684,7 @@ class Contribution(models.Model):
     def save(self, *args, **kw):
         super().save(*args, **kw)
         if self.responsible and not self.course.is_single_result:
-            assert self.can_edit and self.textanswer_visibility == self.GENERAL_TEXTANSWERS
+            assert self.can_edit and self.textanswer_visibility == TextanswerVisibility.GENERAL
 
     @property
     def is_general(self):
@@ -1130,6 +1137,10 @@ class EmailTemplate(models.Model):
     LOGIN_KEY_CREATED = "Login Key Created"
     EVALUATION_STARTED = "Evaluation Started"
     DIRECT_DELEGATION = "Direct Delegation"
+
+    template_params = {
+        EDITOR_REVIEW_NOTICE: ["foo", "bar"]
+    }
 
     ALL_PARTICIPANTS = 'all_participants'
     DUE_PARTICIPANTS = 'due_participants'

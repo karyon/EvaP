@@ -6,7 +6,7 @@ from django.test import override_settings
 
 from model_mommy import mommy
 
-from evap.evaluation.models import Contribution, Course, Question, Questionnaire, RatingAnswerCounter, TextAnswer, UserProfile
+from evap.evaluation.models import Contribution, Course, Question, Questionnaire, RatingAnswerCounter, TextAnswer, UserProfile, TextanswerVisibility
 from evap.results.tools import calculate_average_distribution, collect_results, distribution_to_grade, \
     get_collect_results_cache_key, get_single_result_rating_result, textanswers_visible_to
 from evap.results.views import user_can_see_textanswer
@@ -173,7 +173,7 @@ class TestCalculateAverageDistribution(TestCase):
     def test_get_single_result_rating_result(self):
         single_result_course = mommy.make(Course, state='published', is_single_result=True)
         questionnaire = Questionnaire.objects.get(name_en=Questionnaire.SINGLE_RESULT_QUESTIONNAIRE_NAME)
-        contribution = mommy.make(Contribution, contributor=mommy.make(UserProfile), course=single_result_course, questionnaires=[questionnaire], responsible=True, can_edit=True, textanswer_visibility=Contribution.GENERAL_TEXTANSWERS)
+        contribution = mommy.make(Contribution, contributor=mommy.make(UserProfile), course=single_result_course, questionnaires=[questionnaire], responsible=True, can_edit=True, textanswer_visibility=TextanswerVisibility.GENERAL)
         mommy.make(RatingAnswerCounter, question=questionnaire.questions.first(), contribution=contribution, answer=1, count=1)
         mommy.make(RatingAnswerCounter, question=questionnaire.questions.first(), contribution=contribution, answer=4, count=1)
         distribution = calculate_average_distribution(single_result_course)
@@ -211,13 +211,13 @@ class TestTextAnswerVisibilityInfo(TestCase):
         cls.general_contribution = cls.course.general_contribution
         cls.general_contribution.questionnaires.set([cls.questionnaire])
         cls.responsible1_contribution = mommy.make(Contribution, contributor=cls.responsible1, course=cls.course,
-            questionnaires=[cls.questionnaire], responsible=True, can_edit=True, textanswer_visibility=Contribution.GENERAL_TEXTANSWERS)
+            questionnaires=[cls.questionnaire], responsible=True, can_edit=True, textanswer_visibility=TextanswerVisibility.GENERAL)
         cls.responsible2_contribution = mommy.make(Contribution, contributor=cls.responsible2, course=cls.course,
-            questionnaires=[cls.questionnaire], responsible=True, can_edit=True, textanswer_visibility=Contribution.GENERAL_TEXTANSWERS)
+            questionnaires=[cls.questionnaire], responsible=True, can_edit=True, textanswer_visibility=TextanswerVisibility.GENERAL)
         cls.contributor_own_contribution = mommy.make(Contribution, contributor=cls.contributor_own, course=cls.course,
-            questionnaires=[cls.questionnaire], textanswer_visibility=Contribution.OWN_TEXTANSWERS)
+            questionnaires=[cls.questionnaire], textanswer_visibility=TextanswerVisibility.OWN)
         cls.contributor_general_contribution = mommy.make(Contribution, contributor=cls.contributor_general, course=cls.course,
-            questionnaires=[cls.questionnaire], textanswer_visibility=Contribution.GENERAL_TEXTANSWERS)
+            questionnaires=[cls.questionnaire], textanswer_visibility=TextanswerVisibility.GENERAL)
         cls.general_contribution_textanswer = mommy.make(TextAnswer, question=cls.question, contribution=cls.general_contribution, state=TextAnswer.PUBLISHED)
         cls.responsible1_textanswer = mommy.make(TextAnswer, question=cls.question, contribution=cls.responsible1_contribution, state=TextAnswer.PUBLISHED)
         cls.responsible2_textanswer = mommy.make(TextAnswer, question=cls.question, contribution=cls.responsible2_contribution, state=TextAnswer.PUBLISHED)

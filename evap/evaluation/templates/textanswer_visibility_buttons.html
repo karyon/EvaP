@@ -1,9 +1,9 @@
 <div class="btn-group btn-group-toggle" data-toggle="buttons">
     {% for choice in form.textanswer_visibility %}
-        {% if choice.data.value == 'GENERAL' %}
-            {% trans 'Will see own and general text answers.' as tooltip %}
-        {% elif choice.data.value == 'OWN' %}
-            {% trans 'Default value. Will only see own text answers.' as tooltip %}
+        {% if choice.data.value == TextanswerVisibility.GENERAL %}
+            {% trans 'Will see owncc and general text answers.' as tooltip %}
+        {% elif choice.data.value == TextanswerVisibility.OWN %}
+            {% trans 'Default valuecc. Will only see own text answers.' as tooltip %}
         {% endif %}
         {% include 'choice_button.html' with formelement=form.textanswer_visibility choice=choice tooltip=tooltip %}
     {% endfor %}

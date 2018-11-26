@@ -1,7 +1,7 @@
 from django.forms.models import inlineformset_factory
 from django.test import TestCase
 from evap.contributor.forms import DelegatesForm, EditorContributionForm
-from evap.evaluation.models import Contribution, Course, Questionnaire, UserProfile
+from evap.evaluation.models import Contribution, Course, Questionnaire, UserProfile, TextanswerVisibility
 from evap.evaluation.tests.tools import WebTest, get_form_data_from_instance
 from evap.staff.forms import ContributionFormSet
 from model_mommy import mommy
@@ -67,7 +67,7 @@ class ContributionFormsetTests(TestCase):
         course = mommy.make(Course)
         user = mommy.make(UserProfile)
         contribution = mommy.make(Contribution, course=course, contributor=user, responsible=True,
-                                  can_edit=True, textanswer_visibility=Contribution.GENERAL_TEXTANSWERS)
+                                  can_edit=True, textanswer_visibility=TextanswerVisibility.GENERAL)
         InlineContributionFormset = inlineformset_factory(Course, Contribution, formset=ContributionFormSet, form=EditorContributionForm, extra=1)
 
         data = {
@@ -81,7 +81,7 @@ class ContributionFormsetTests(TestCase):
             "contributions-0-contributor": user.pk,
             "contributions-0-does_not_contribute": "on",
             "contributions-0-responsibility": Contribution.IS_EDITOR,
-            "contributions-0-textanswer_visibility": Contribution.OWN_TEXTANSWERS,
+            "contributions-0-textanswer_visibility": TextanswerVisibility.OWN,
             "contributions-0-label": "",
             "contributions-0-DELETE": "",
         }
@@ -95,8 +95,8 @@ class ContributionFormsetTests(TestCase):
         course = mommy.make(Course)
         user1 = mommy.make(UserProfile)
         user2 = mommy.make(UserProfile)
-        contribution1 = mommy.make(Contribution, course=course, contributor=user1, responsible=True, can_edit=True, textanswer_visibility=Contribution.GENERAL_TEXTANSWERS)
-        contribution2 = mommy.make(Contribution, course=course, contributor=user2, responsible=False, can_edit=True, textanswer_visibility=Contribution.GENERAL_TEXTANSWERS)
+        contribution1 = mommy.make(Contribution, course=course, contributor=user1, responsible=True, can_edit=True, textanswer_visibility=TextanswerVisibility.GENERAL)
+        contribution2 = mommy.make(Contribution, course=course, contributor=user2, responsible=False, can_edit=True, textanswer_visibility=TextanswerVisibility.GENERAL)
         InlineContributionFormset = inlineformset_factory(Course, Contribution, formset=ContributionFormSet, form=EditorContributionForm, extra=1)
 
         data = {
@@ -110,7 +110,7 @@ class ContributionFormsetTests(TestCase):
             "contributions-0-contributor": user1.pk,
             "contributions-0-does_not_contribute": "on",
             "contributions-0-responsibility": Contribution.IS_RESPONSIBLE,
-            "contributions-0-textanswer_visibility": Contribution.OWN_TEXTANSWERS,
+            "contributions-0-textanswer_visibility": TextanswerVisibility.OWN,
             "contributions-0-label": "",
             "contributions-0-DELETE": "",
             "contributions-1-course": course.pk,
@@ -119,7 +119,7 @@ class ContributionFormsetTests(TestCase):
             "contributions-1-contributor": user2.pk,
             "contributions-1-does_not_contribute": "on",
             "contributions-1-responsibility": Contribution.IS_EDITOR,
-            "contributions-1-textanswer_visibility": Contribution.GENERAL_TEXTANSWERS,
+            "contributions-1-textanswer_visibility": TextanswerVisibility.GENERAL,
             "contributions-1-label": "",
             "contributions-1-DELETE": "",
         }
@@ -134,7 +134,7 @@ class ContributionFormsetTests(TestCase):
         course = mommy.make(Course)
         user = mommy.make(UserProfile)
         contribution = mommy.make(Contribution, course=course, contributor=user, responsible=True,
-                                  can_edit=True, textanswer_visibility=Contribution.GENERAL_TEXTANSWERS)
+                                  can_edit=True, textanswer_visibility=TextanswerVisibility.GENERAL)
         InlineContributionFormset = inlineformset_factory(Course, Contribution, formset=ContributionFormSet, form=EditorContributionForm, extra=1)
 
         data = {
@@ -148,7 +148,7 @@ class ContributionFormsetTests(TestCase):
             "contributions-0-contributor": user.pk,
             "contributions-0-does_not_contribute": "on",
             "contributions-0-responsibility": Contribution.IS_RESPONSIBLE,
-            "contributions-0-textanswer_visibility": Contribution.OWN_TEXTANSWERS,
+            "contributions-0-textanswer_visibility": TextanswerVisibility.OWN,
             "contributions-0-label": "",
             "contributions-0-DELETE": "",
         }
@@ -164,7 +164,7 @@ class ContributionFormsetTests(TestCase):
         user1 = mommy.make(UserProfile)
         user2 = mommy.make(UserProfile)
         contribution = mommy.make(Contribution, course=course, contributor=user1, responsible=True,
-                                  can_edit=True, textanswer_visibility=Contribution.GENERAL_TEXTANSWERS)
+                                  can_edit=True, textanswer_visibility=TextanswerVisibility.GENERAL)
         InlineContributionFormset = inlineformset_factory(Course, Contribution, formset=ContributionFormSet, form=EditorContributionForm, extra=1)
 
         data = {
@@ -179,7 +179,7 @@ class ContributionFormsetTests(TestCase):
             "contributions-0-contributor": user1.pk,
             "contributions-0-does_not_contribute": "on",
             "contributions-0-responsibility": Contribution.IS_RESPONSIBLE,
-            "contributions-0-textanswer_visibility": Contribution.OWN_TEXTANSWERS,
+            "contributions-0-textanswer_visibility": TextanswerVisibility.OWN,
             "contributions-0-label": "",
         }
         formset = InlineContributionFormset(data, instance=course, can_change_responsible=False, form_kwargs={'course': course})
@@ -194,7 +194,7 @@ class ContributionFormsetTests(TestCase):
             "contributions-1-contributor": user2.pk,
             "contributions-1-does_not_contribute": "on",
             "contributions-1-responsibility": Contribution.IS_RESPONSIBLE,
-            "contributions-1-textanswer_visibility": Contribution.OWN_TEXTANSWERS,
+            "contributions-1-textanswer_visibility": TextanswerVisibility.OWN,
             "contributions-1-label": "",
         })
         formset = InlineContributionFormset(data, instance=course, can_change_responsible=False, form_kwargs={'course': course})
@@ -215,8 +215,8 @@ class ContributionFormsetWebTests(WebTest):
         user1 = mommy.make(UserProfile)
         user2 = mommy.make(UserProfile)
         questionnaire = mommy.make(Questionnaire, type=Questionnaire.CONTRIBUTOR)
-        contribution1 = mommy.make(Contribution, course=course, contributor=user1, responsible=True, can_edit=True, textanswer_visibility=Contribution.GENERAL_TEXTANSWERS, questionnaires=[questionnaire], order=1)
-        contribution2 = mommy.make(Contribution, course=course, contributor=user2, responsible=False, can_edit=True, textanswer_visibility=Contribution.GENERAL_TEXTANSWERS, questionnaires=[questionnaire], order=2)
+        contribution1 = mommy.make(Contribution, course=course, contributor=user1, responsible=True, can_edit=True, textanswer_visibility=TextanswerVisibility.GENERAL, questionnaires=[questionnaire], order=1)
+        contribution2 = mommy.make(Contribution, course=course, contributor=user2, responsible=False, can_edit=True, textanswer_visibility=TextanswerVisibility.GENERAL, questionnaires=[questionnaire], order=2)
 
         # almost everything is missing in this set of data,
         # so we're guaranteed to have some errors

@@ -6,7 +6,7 @@ from django.contrib.auth.models import Group
 from django_webtest import WebTest
 from model_mommy import mommy
 
-from evap.evaluation.models import UserProfile, Course, Questionnaire, Contribution, Semester
+from evap.evaluation.models import UserProfile, Course, Questionnaire, Contribution, Semester, TextanswerVisibility
 
 
 class GradeUploadTest(WebTest):
@@ -32,7 +32,7 @@ class GradeUploadTest(WebTest):
         )
 
         contribution = mommy.make(Contribution, course=cls.course, contributor=responsible, responsible=True,
-                                  can_edit=True, textanswer_visibility=Contribution.GENERAL_TEXTANSWERS)
+                                  can_edit=True, textanswer_visibility=TextanswerVisibility.GENERAL)
         contribution.questionnaires.set([mommy.make(Questionnaire, type=Questionnaire.CONTRIBUTOR)])
 
         cls.course.general_contribution.questionnaires.set([mommy.make(Questionnaire)])
@@ -134,7 +134,7 @@ class GradeUploadTest(WebTest):
             voters=[self.student, self.student2]
         )
         contribution = Contribution(course=course, contributor=UserProfile.objects.get(username="responsible"),
-                                    responsible=True, can_edit=True, textanswer_visibility=Contribution.GENERAL_TEXTANSWERS)
+                                    responsible=True, can_edit=True, textanswer_visibility=TextanswerVisibility.GENERAL)
         contribution.save()
         contribution.questionnaires.set([mommy.make(Questionnaire, type=Questionnaire.CONTRIBUTOR)])
 

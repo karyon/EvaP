@@ -11,7 +11,7 @@ from django.template.loader import get_template
 from django.contrib.auth.decorators import login_required
 from django.utils import translation
 
-from evap.evaluation.models import Semester, Degree, Contribution, Course, CourseType, UserProfile
+from evap.evaluation.models import Semester, Degree, Contribution, Course, CourseType, UserProfile, TextanswerVisibility
 from evap.evaluation.auth import internal_required
 from evap.results.tools import collect_results, calculate_average_distribution, distribution_to_grade, \
     TextAnswer, TextResult, HeadingResult, get_single_result_rating_result
@@ -244,9 +244,9 @@ def user_can_see_textanswer(user, represented_users, textanswer, view):
         if contributor in represented_users:
             return True
         # users can see text answers from general contributions if one of their represented users has text answer
-        # visibility GENERAL_TEXTANSWERS for the course
+        # visibility GENERAL for the course
         if textanswer.contribution.is_general and textanswer.contribution.course.contributions.filter(
-                contributor__in=represented_users, textanswer_visibility=Contribution.GENERAL_TEXTANSWERS).exists():
+                contributor__in=represented_users, textanswer_visibility=TextanswerVisibility.GENERAL).exists():
             return True
 
     return False

@@ -6,7 +6,7 @@ import itertools
 from django.conf import settings
 from django.core.cache import caches
 
-from evap.evaluation.models import Contribution, Question, Questionnaire, RatingAnswerCounter, TextAnswer, UserProfile
+from evap.evaluation.models import Contribution, Question, Questionnaire, RatingAnswerCounter, TextAnswer, UserProfile, TextanswerVisibility
 
 
 GRADE_COLORS = {
@@ -240,7 +240,7 @@ def textanswers_visible_to(contribution):
     if contribution.is_general:
         contributors = UserProfile.objects.filter(
             contributions__course=contribution.course,
-            contributions__textanswer_visibility=Contribution.GENERAL_TEXTANSWERS
+            contributions__textanswer_visibility=TextanswerVisibility.GENERAL
         ).distinct().order_by('contributions__textanswer_visibility')
     else:
         contributors = [contribution.contributor]

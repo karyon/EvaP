@@ -3,7 +3,7 @@ from django.core import mail
 
 from model_mommy import mommy
 
-from evap.evaluation.models import Contribution, Course, UserProfile
+from evap.evaluation.models import Contribution, Course, UserProfile, TextanswerVisibility
 from evap.evaluation.tests.tools import WebTest
 
 
@@ -17,8 +17,8 @@ class LoginTests(WebTest):
         cls.inactive_external_user = mommy.make(UserProfile, email="inactive@extern.com", is_active=False)
         cls.inactive_external_user.ensure_valid_login_key()
         course = mommy.make(Course, state='published')
-        mommy.make(Contribution, course=course, contributor=cls.external_user, can_edit=True, responsible=True, textanswer_visibility=Contribution.GENERAL_TEXTANSWERS)
-        mommy.make(Contribution, course=course, contributor=cls.inactive_external_user, can_edit=True, responsible=False, textanswer_visibility=Contribution.GENERAL_TEXTANSWERS)
+        mommy.make(Contribution, course=course, contributor=cls.external_user, can_edit=True, responsible=True, textanswer_visibility=TextanswerVisibility.GENERAL)
+        mommy.make(Contribution, course=course, contributor=cls.inactive_external_user, can_edit=True, responsible=False, textanswer_visibility=TextanswerVisibility.GENERAL)
 
     def test_login_url_works(self):
         self.assertRedirects(self.app.get(reverse("contributor:index")), "/?next=/contributor/")

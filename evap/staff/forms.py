@@ -11,7 +11,7 @@ from django.utils.text import normalize_newlines
 from django.utils.translation import ugettext_lazy as _
 from evap.evaluation.forms import UserModelChoiceField, UserModelMultipleChoiceField
 from evap.evaluation.models import (Contribution, Course, CourseType, Degree, EmailTemplate, FaqQuestion, FaqSection, Question, Questionnaire,
-                                    RatingAnswerCounter, Semester, TextAnswer, UserProfile)
+                                    RatingAnswerCounter, Semester, TextAnswer, UserProfile, TextanswerVisibility)
 from evap.evaluation.tools import date_to_datetime
 
 logger = logging.getLogger(__name__)
@@ -259,7 +259,7 @@ class SingleResultForm(forms.ModelForm):
         single_result_questionnaire = Questionnaire.single_result_questionnaire()
         single_result_question = single_result_questionnaire.questions.first()
 
-        contribution, created = Contribution.objects.get_or_create(course=self.instance, responsible=True, can_edit=True, textanswer_visibility=Contribution.GENERAL_TEXTANSWERS)
+        contribution, created = Contribution.objects.get_or_create(course=self.instance, responsible=True, can_edit=True, textanswer_visibility=TextanswerVisibility.GENERAL)
         contribution.contributor = self.cleaned_data['responsible']
         if created:
             contribution.questionnaires.add(single_result_questionnaire)
@@ -341,7 +341,7 @@ class ContributionForm(forms.ModelForm):
         self.instance.responsible = is_responsible
         self.instance.can_edit = is_responsible or is_editor
         if is_responsible:
-            self.instance.textanswer_visibility = Contribution.GENERAL_TEXTANSWERS
+            self.instance.textanswer_visibility = TextanswerVisibility.GENERAL
         return super().save(*args, **kwargs)
 
 

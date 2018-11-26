@@ -7,7 +7,7 @@ from django.utils.translation import ugettext as _
 from django.utils.safestring import mark_safe
 from django.core.exceptions import ValidationError
 
-from evap.evaluation.models import Course, UserProfile, Degree, Contribution, CourseType
+from evap.evaluation.models import Course, UserProfile, Degree, Contribution, CourseType, TextanswerVisibility
 from evap.evaluation.tools import is_external_email
 
 
@@ -96,7 +96,7 @@ class CourseData(CommonEqualityMixin):
         course.save()
         # This is safe because the user's email address is checked before in the importer (see #953)
         responsible_dbobj = UserProfile.objects.get(email=self.responsible_email)
-        course.contributions.create(contributor=responsible_dbobj, course=course, responsible=True, can_edit=True, textanswer_visibility=Contribution.GENERAL_TEXTANSWERS)
+        course.contributions.create(contributor=responsible_dbobj, course=course, responsible=True, can_edit=True, textanswer_visibility=TextanswerVisibility.GENERAL)
         for degree_name in self.degree_names:
             course.degrees.add(Degree.objects.get(name_de=degree_name))
 
