@@ -89,6 +89,7 @@ def get_evaluations_with_prefetched_data(evaluations):
 def index(request):
     semesters = Semester.get_all_with_published_unarchived_results()
     evaluations = Evaluation.objects.filter(course__semester__in=semesters, state='published')
+    evaluations = evaluations.select_related('course', 'course__semester')
     evaluations = [evaluation for evaluation in evaluations if evaluation.can_user_see_evaluation(request.user)]
 
     if request.user.is_reviewer:
