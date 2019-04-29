@@ -4,10 +4,6 @@
 {% load evaluation_filters %}
 {% load results_templatetags %}
 
-{% get_current_language as LANGUAGE_CODE %}
-
-{% cache evaluation|evaluation_results_cache_timeout evaluation_result_template_fragment evaluation.id LANGUAGE_CODE can_user_see_results_page using="results" %}
-
 <tr class="hover-results {% if not can_user_see_results_page %}nohover{% endif %}{% if evaluation.state == 'in_evaluation' or evaluation.state == 'evaluated' or evaluation.state == 'reviewed' %} preview{% endif %}"
         {% if can_user_see_results_page %}data-url="{% url 'results:evaluation_detail' evaluation.course.semester.id evaluation.id %}"{% endif %}>
     <td data-order="{{ evaluation.name }}">
@@ -57,5 +53,3 @@
         {% endif %}
     </td>
 </tr>
-
-{% endcache %}

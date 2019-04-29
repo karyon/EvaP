@@ -9,7 +9,7 @@ from model_mommy import mommy
 from evap.evaluation.models import (Contribution, Course, Degree, Evaluation, Question, Questionnaire, RatingAnswerCounter,
                                     Semester, UserProfile)
 from evap.evaluation.tests.tools import WebTestWith200Check, let_user_vote_for_evaluation
-from evap.results.views import get_evaluations_with_prefetched_data
+from evap.results.views import get_evaluations_with_prefetched_data, warm_up_template_cache
 
 import random
 
@@ -246,8 +246,12 @@ class TestResultsSemesterEvaluationDetailViewPrivateEvaluation(WebTest):
         mommy.make(Contribution, evaluation=private_evaluation, contributor=responsible_contributor, can_edit=True, textanswer_visibility=Contribution.GENERAL_TEXTANSWERS)
         mommy.make(Contribution, evaluation=private_evaluation, contributor=contributor, can_edit=True)
 
+        warm_up_template_cache([private_evaluation])
+
         url = '/results/'
         self.assertNotIn(private_evaluation.name, self.app.get(url, user='random'))
+        page = self.app.get(url, user='student')
+        print(page)
         self.assertIn(private_evaluation.name, self.app.get(url, user='student'))
         self.assertIn(private_evaluation.name, self.app.get(url, user='responsible'))
         self.assertIn(private_evaluation.name, self.app.get(url, user='responsible_contributor'))
@@ -592,6 +596,8 @@ class TestArchivedResults(WebTest):
         cls.evaluation.general_contribution.questionnaires.set([mommy.make(Questionnaire)])
         cls.contribution = mommy.make(Contribution, evaluation=cls.evaluation, can_edit=True, textanswer_visibility=Contribution.GENERAL_TEXTANSWERS, contributor=responsible)
         cls.contribution = mommy.make(Contribution, evaluation=cls.evaluation, contributor=contributor)
+
+        warm_up_template_cache([cls.evaluation])
 
     @patch('evap.results.templatetags.results_templatetags.get_grade_color', new=lambda x: (0, 0, 0))
     def test_unarchived_results(self):

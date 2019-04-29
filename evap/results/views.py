@@ -17,38 +17,42 @@ from evap.results.tools import collect_results, calculate_average_distribution, 
     TextAnswer, TextResult, HeadingResult, get_single_result_rating_result
 
 
-def get_evaluation_result_template_fragment_cache_key(evaluation_id, language, can_user_see_results_page):
-    return make_template_fragment_key('evaluation_result_template_fragment', [evaluation_id, language, can_user_see_results_page])
-
+def get_rendered_result_cache_key(evaluation_id, language, can_user_see_results_page):
+    return f"results_index_{evaluation_id}_{language}_{can_user_see_results_page}"
 
 def delete_template_cache(evaluation):
     assert evaluation.state != 'published'
     _delete_template_cache_impl(evaluation)
 
-
 def _delete_template_cache_impl(evaluation):
-    caches['results'].delete(get_evaluation_result_template_fragment_cache_key(evaluation.id, 'en', True))
-    caches['results'].delete(get_evaluation_result_template_fragment_cache_key(evaluation.id, 'en', False))
-    caches['results'].delete(get_evaluation_result_template_fragment_cache_key(evaluation.id, 'de', True))
-    caches['results'].delete(get_evaluation_result_template_fragment_cache_key(evaluation.id, 'de', False))
+    caches['results'].delete(get_rendered_result_cache_key(evaluation.id, 'en', True))
+    caches['results'].delete(get_rendered_result_cache_key(evaluation.id, 'en', False))
+    caches['results'].delete(get_rendered_result_cache_key(evaluation.id, 'de', True))
+    caches['results'].delete(get_rendered_result_cache_key(evaluation.id, 'de', False))
 
+def render_evaluation_template(evaluation, can_user_see_results_page):
+    return render_evaluation_template.template.render(dict(evaluation=evaluation, can_user_see_results_page=can_user_see_results_page))
+render_evaluation_template.template = get_template('results_index_evaluation.html')
+
+def add_to_cache(evaluation, language, can_user_see_results_page):
+    rendered = render_evaluation_template(evaluation, can_user_see_results_page)
+    cache_key = get_rendered_result_cache_key(evaluation.pk, language, can_user_see_results_page)
+    caches['results'].set(cache_key, rendered)
 
 def warm_up_template_cache(evaluations):
+    print("first")
     evaluations = get_evaluations_with_prefetched_data(evaluations)
+    print("second")
     current_language = translation.get_language()
     try:
         for evaluation in evaluations:
             assert evaluation.state == 'published'
             translation.activate('en')
-            get_template('results_index_evaluation.html').render(dict(evaluation=evaluation, can_user_see_results_page=True))
-            get_template('results_index_evaluation.html').render(dict(evaluation=evaluation, can_user_see_results_page=False))
+            add_to_cache(evaluation, 'en', True)
+            add_to_cache(evaluation, 'en', False)
             translation.activate('de')
-            get_template('results_index_evaluation.html').render(dict(evaluation=evaluation, can_user_see_results_page=True))
-            get_template('results_index_evaluation.html').render(dict(evaluation=evaluation, can_user_see_results_page=False))
-            assert get_evaluation_result_template_fragment_cache_key(evaluation.id, 'en', True) in caches['results']
-            assert get_evaluation_result_template_fragment_cache_key(evaluation.id, 'en', False) in caches['results']
-            assert get_evaluation_result_template_fragment_cache_key(evaluation.id, 'de', True) in caches['results']
-            assert get_evaluation_result_template_fragment_cache_key(evaluation.id, 'de', False) in caches['results']
+            add_to_cache(evaluation, 'de', True)
+            add_to_cache(evaluation, 'de', False)
     finally:
         translation.activate(current_language)  # reset to previously set language to prevent unwanted side effects
 
@@ -72,40 +76,67 @@ def get_evaluations_with_prefetched_data(evaluations):
                 "course__responsibles",
             )
         )
+        print("init queries done")
         for evaluation, participant_count, voter_count in zip(evaluations, participant_counts, voter_counts):
             if evaluation._participant_count is None:
                 evaluation.num_participants = participant_count
                 evaluation.num_voters = voter_count
+        print("queries done")
     for evaluation in evaluations:
         if not evaluation.is_single_result:
             evaluation.distribution = calculate_average_distribution(evaluation)
             evaluation.avg_grade = distribution_to_grade(evaluation.distribution)
         else:
             evaluation.single_result_rating_result = get_single_result_rating_result(evaluation)
+    print(f"that other loop done, #evaluations: {len(evaluations)}")
     return evaluations
 
 
 @internal_required
 def index(request):
+    import time
+    start_time = time.time()
     semesters = Semester.get_all_with_published_unarchived_results()
     evaluations = Evaluation.objects.filter(course__semester__in=semesters, state='published')
     evaluations = evaluations.select_related('course', 'course__semester')
+    evaluations = list(evaluations)
+
+    print("query: " + str(time.time() - start_time))
     evaluations = [evaluation for evaluation in evaluations if evaluation.can_user_see_evaluation(request.user)]
+
+    print("can_see_evaluation: " + str(time.time() - start_time))
+    current_language = translation.get_language()
+    cache_keys = []
+    for evaluation in evaluations:
+        can_see = evaluation.can_user_see_results_page(request.user)
+        cache_keys.append(get_rendered_result_cache_key(evaluation.pk, current_language, can_see))
+    print("can_see_results cache keys: " + str(time.time() - start_time))
+
+    rendered_list = ''.join(caches['results'].get_many(cache_keys).values())
+    print("cache query: " + str(time.time() - start_time))
 
     if request.user.is_reviewer:
         additional_evaluations = Evaluation.objects.filter(course__semester__in=semesters, state__in=['in_evaluation', 'evaluated', 'reviewed'])
-        evaluations += get_evaluations_with_prefetched_data(additional_evaluations)
+        evaluations += list(additional_evaluations)
+        additional_evaluations = get_evaluations_with_prefetched_data(additional_evaluations)
+        rendered_list += ''.join(render_evaluation_template(evaluation, True) for evaluation in additional_evaluations)
+    print("additional courses: " + str(time.time() - start_time))
 
     evaluation_pks = [evaluation.pk for evaluation in evaluations]
-    degrees = Degree.objects.filter(courses__evaluation__pk__in=evaluation_pks).distinct()
-    course_types = CourseType.objects.filter(courses__evaluation__pk__in=evaluation_pks).distinct()
+    degrees = list(Degree.objects.filter(courses__evaluation__pk__in=evaluation_pks).distinct())
+    print("degrees: " + str(time.time() - start_time))
+    course_types = list(CourseType.objects.filter(pk__in=set([evaluation.course.type_id for evaluation in evaluations])))
+    # course_types = list(CourseType.objects.filter(courses__evaluation__pk__in=evaluation_pks).distinct())
+    print("course types: " + str(time.time() - start_time))
     template_data = dict(
-        evaluations=evaluations,
         degrees=degrees,
         course_types=course_types,
         semesters=semesters,
+        rendered_list=rendered_list
     )
-    return render(request, "results_index.html", template_data)
+    tmp = render(request, "results_index.html", template_data)
+    print("template rendering: " + str(time.time() - start_time))
+    return tmp
 
 
 @login_required

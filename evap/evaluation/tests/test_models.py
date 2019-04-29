@@ -12,7 +12,7 @@ from evap.evaluation.models import (Contribution, Course, CourseType, EmailTempl
                                     Question, Questionnaire, RatingAnswerCounter, Semester, TextAnswer, UserProfile)
 from evap.evaluation.tests.tools import let_user_vote_for_evaluation
 from evap.results.tools import calculate_average_distribution
-from evap.results.views import get_evaluation_result_template_fragment_cache_key
+from evap.results.views import get_rendered_result_cache_key
 
 
 @override_settings(EVALUATION_END_OFFSET_HOURS=0)
@@ -267,24 +267,24 @@ class TestEvaluations(WebTest):
         student = mommy.make(UserProfile)
         evaluation = mommy.make(Evaluation, state='reviewed', participants=[student], voters=[student], can_publish_text_results=True)
 
-        self.assertIsNone(caches['results'].get(get_evaluation_result_template_fragment_cache_key(evaluation.id, "en", True)))
-        self.assertIsNone(caches['results'].get(get_evaluation_result_template_fragment_cache_key(evaluation.id, "en", False)))
-        self.assertIsNone(caches['results'].get(get_evaluation_result_template_fragment_cache_key(evaluation.id, "de", True)))
-        self.assertIsNone(caches['results'].get(get_evaluation_result_template_fragment_cache_key(evaluation.id, "de", False)))
+        self.assertIsNone(caches['results'].get(get_rendered_result_cache_key(evaluation.id, "en", True)))
+        self.assertIsNone(caches['results'].get(get_rendered_result_cache_key(evaluation.id, "en", False)))
+        self.assertIsNone(caches['results'].get(get_rendered_result_cache_key(evaluation.id, "de", True)))
+        self.assertIsNone(caches['results'].get(get_rendered_result_cache_key(evaluation.id, "de", False)))
 
         evaluation.publish()
 
-        self.assertIsNotNone(caches['results'].get(get_evaluation_result_template_fragment_cache_key(evaluation.id, "en", True)))
-        self.assertIsNotNone(caches['results'].get(get_evaluation_result_template_fragment_cache_key(evaluation.id, "en", False)))
-        self.assertIsNotNone(caches['results'].get(get_evaluation_result_template_fragment_cache_key(evaluation.id, "de", True)))
-        self.assertIsNotNone(caches['results'].get(get_evaluation_result_template_fragment_cache_key(evaluation.id, "de", False)))
+        self.assertIsNotNone(caches['results'].get(get_rendered_result_cache_key(evaluation.id, "en", True)))
+        self.assertIsNotNone(caches['results'].get(get_rendered_result_cache_key(evaluation.id, "en", False)))
+        self.assertIsNotNone(caches['results'].get(get_rendered_result_cache_key(evaluation.id, "de", True)))
+        self.assertIsNotNone(caches['results'].get(get_rendered_result_cache_key(evaluation.id, "de", False)))
 
         evaluation.unpublish()
 
-        self.assertIsNone(caches['results'].get(get_evaluation_result_template_fragment_cache_key(evaluation.id, "en", True)))
-        self.assertIsNone(caches['results'].get(get_evaluation_result_template_fragment_cache_key(evaluation.id, "en", False)))
-        self.assertIsNone(caches['results'].get(get_evaluation_result_template_fragment_cache_key(evaluation.id, "de", True)))
-        self.assertIsNone(caches['results'].get(get_evaluation_result_template_fragment_cache_key(evaluation.id, "de", False)))
+        self.assertIsNone(caches['results'].get(get_rendered_result_cache_key(evaluation.id, "en", True)))
+        self.assertIsNone(caches['results'].get(get_rendered_result_cache_key(evaluation.id, "en", False)))
+        self.assertIsNone(caches['results'].get(get_rendered_result_cache_key(evaluation.id, "de", True)))
+        self.assertIsNone(caches['results'].get(get_rendered_result_cache_key(evaluation.id, "de", False)))
 
 
 class TestUserProfile(TestCase):

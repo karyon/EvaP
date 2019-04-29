@@ -69,7 +69,7 @@
     </div>
     <div class="card card-noflex">
         <div class="card-body pt-0 pb-2">
-            {% if evaluations %}
+            {% if rendered_list %}
                 <table id="results-table" class="table table-hover-evap vertically-aligned{% if not forloop.last %} mb-3{% endif %}">
                     <thead>
                         <tr class="table-header">
@@ -81,9 +81,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                    {% for evaluation in evaluations %}
-                        {% include 'results_index_evaluation.html' with can_user_see_results_page=evaluation|can_user_see_results_page:request.user %}
-                    {% endfor %}
+                    {{ rendered_list|safe }}
                     </tbody>
                 </table>
             {% endif %}
