@@ -16,7 +16,7 @@ from evap.evaluation.models import (Contribution, Course, CourseType, Degree, Em
                                     FaqSection, Question, Questionnaire, RatingAnswerCounter, Semester, TextAnswer,
                                     UserProfile)
 from evap.evaluation.tools import date_to_datetime
-from evap.results.tools import collect_results
+from evap.results.tools import collect_results, STATES_WITH_RESULTS_CACHING
 from evap.results.views import (update_template_cache,
                                 update_template_cache_of_published_evaluations_in_course)
 
@@ -128,7 +128,7 @@ class SemesterForm(forms.ModelForm):
     def save(self, *args, **kwargs):
         semester = super().save(*args, **kwargs)
         if 'short_name_en' in self.changed_data or 'short_name_de' in self.changed_data:
-            update_template_cache(semester.evaluations.filter(state="published"))
+            update_template_cache(semester.evaluations.filter(state__in=STATES_WITH_RESULTS_CACHING))
         return semester
 
 
@@ -153,7 +153,7 @@ class DegreeForm(forms.ModelForm):
     def save(self, *args, **kwargs):
         degree = super().save(*args, **kwargs)
         if "name_en" in self.changed_data or "name_de" in self.changed_data:
-            update_template_cache(Evaluation.objects.filter(state="published", course__degrees__in=[degree]))
+            update_template_cache(Evaluation.objects.filter(state__in=STATES_WITH_RESULTS_CACHING, course__degrees__in=[degree]))
         return degree
 
 
@@ -178,7 +178,7 @@ class CourseTypeForm(forms.ModelForm):
     def save(self, *args, **kwargs):
         course_type = super().save(*args, **kwargs)
         if "name_en" in self.changed_data or "name_de" in self.changed_data:
-            update_template_cache(Evaluation.objects.filter(state="published", course__type=course_type))
+            update_template_cache(Evaluation.objects.filter(state__in=STATES_WITH_RESULTS_CACHING, course__type=course_type))
         return course_type
 
 

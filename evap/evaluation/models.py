@@ -422,16 +422,19 @@ class Evaluation(models.Model):
 
         assert self.vote_end_date >= self.vote_start_datetime.date()
 
-        if hasattr(self, 'state_change'):
+        if hasattr(self, 'state_change_source'):
             # It's clear that results.models will need to reference evaluation.models' classes in ForeignKeys.
             # However, this method only makes sense as a method of Evaluation. Thus, we can't get rid of these imports
             # pylint: disable=import-outside-toplevel
-            if self.state_change == "published":
+            from evap.results.tools import STATES_WITH_RESULTS_CACHING
+            if (self.state in STATES_WITH_RESULTS_CACHING
+                and self.state_change_source not in STATES_WITH_RESULTS_CACHING):
                 from evap.results.tools import collect_results
                 from evap.results.views import update_template_cache_of_published_evaluations_in_course
                 collect_results(self)
                 update_template_cache_of_published_evaluations_in_course(self.course)
-            elif self.state_change == "unpublished":
+            if (self.state not in STATES_WITH_RESULTS_CACHING
+                and self.state_change_source in STATES_WITH_RESULTS_CACHING):
                 from evap.results.tools import get_collect_results_cache_key
                 from evap.results.views import delete_template_cache, update_template_cache_of_published_evaluations_in_course
                 caches['results'].delete(get_collect_results_cache_key(self))
@@ -770,17 +773,9 @@ class Evaluation(models.Model):
 
 
 @receiver(post_transition, sender=Evaluation)
-def course_was_published(instance, target, **_kwargs):
+def evaluation_state_change(instance, source, **_kwargs):
     """ Evaluation.save checks whether caches must be updated based on this value """
-    if target == 'published':
-        instance.state_change = "published"
-
-
-@receiver(post_transition, sender=Evaluation)
-def course_was_unpublished(instance, source, **_kwargs):
-    """ Evaluation.save checks whether caches must be updated based on this value """
-    if source == 'published':
-        instance.state_change = "unpublished"
+    instance.state_change_source = source
 
 
 @receiver(post_transition, sender=Evaluation)
