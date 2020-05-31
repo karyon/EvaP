@@ -429,9 +429,9 @@ class Evaluation(models.Model):
             from evap.results.tools import STATES_WITH_RESULTS_CACHING
             if (self.state in STATES_WITH_RESULTS_CACHING
                 and self.state_change_source not in STATES_WITH_RESULTS_CACHING):
-                from evap.results.tools import collect_results
+                from evap.results.tools import cache_results
                 from evap.results.views import update_template_cache_of_published_evaluations_in_course
-                collect_results(self)
+                cache_results(self)
                 update_template_cache_of_published_evaluations_in_course(self.course)
             if (self.state not in STATES_WITH_RESULTS_CACHING
                 and self.state_change_source in STATES_WITH_RESULTS_CACHING):

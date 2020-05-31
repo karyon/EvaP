@@ -177,9 +177,9 @@ class TestReloadTestdataCommand(TestCase):
 
 class TestRefreshResultsCacheCommand(TestCase):
     def test_calls_collect_results(self):
-        baker.make(Evaluation)
+        baker.make(Evaluation, state='published')
 
-        with patch('evap.evaluation.management.commands.refresh_results_cache.collect_results') as mock:
+        with patch('evap.evaluation.management.commands.refresh_results_cache.cache_results') as mock:
             management.call_command('refresh_results_cache', stdout=StringIO())
 
         self.assertEqual(mock.call_count, Evaluation.objects.count())

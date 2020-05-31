@@ -16,7 +16,7 @@ from evap.evaluation.models import (Contribution, Course, CourseType, Degree, Em
                                     FaqSection, Question, Questionnaire, RatingAnswerCounter, Semester, TextAnswer,
                                     UserProfile)
 from evap.evaluation.tools import date_to_datetime
-from evap.results.tools import collect_results, STATES_WITH_RESULTS_CACHING
+from evap.results.tools import cache_results, STATES_WITH_RESULTS_CACHING
 from evap.results.views import (update_template_cache,
                                 update_template_cache_of_published_evaluations_in_course)
 
@@ -777,9 +777,13 @@ class UserForm(forms.ModelForm):
         self.instance.is_active = not self.cleaned_data.get('is_inactive')
 
         # refresh results cache
-        for evaluation in Evaluation.objects.filter(contributions__contributor=self.instance).distinct():
+        evaluations = Evaluation.objects.filter(
+            contributions__contributor=self.instance,
+            state__in=STATES_WITH_RESULTS_CACHING
+        ).distinct()
+        for evaluation in evaluations:
             if any(attribute in self.changed_data for attribute in ["first_name", "last_name", "title"]):
-                collect_results(evaluation, force_recalculation=True)
+                cache_results(evaluation)
 
         self.instance.save()
 
