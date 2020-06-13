@@ -16,6 +16,7 @@ from evap.evaluation.models import Contribution, Course, Evaluation, TextAnswer,
 from evap.evaluation.tools import clean_email, is_external_email
 from evap.grades.models import GradeDocument
 from evap.results.tools import cache_results, STATES_WITH_RESULTS_CACHING
+from evap.results.views import update_results_template_cache_of_evaluations, update_results_template_cache_of_courses
 
 
 def forward_messages(request, success_messages, warnings):
@@ -247,11 +248,13 @@ def merge_users(main_user, other_user, preview=False):
         return merged_user, errors, warnings
 
     # update responsibility
-    for course in Course.objects.filter(responsibles__in=[other_user]):
+    courses = Course.objects.filter(responsibles__in=[other_user])
+    for course in courses:
         responsibles = list(course.responsibles.all())
         responsibles.remove(other_user)
         responsibles.append(main_user)
         course.responsibles.set(responsibles)
+    update_results_template_cache_of_courses(courses) # TODO only on main user? other user?
 
     # update last_modified_user for evaluations and grade documents
     Course.objects.filter(last_modified_user=other_user).update(last_modified_user=main_user)
@@ -280,6 +283,7 @@ def merge_users(main_user, other_user, preview=False):
         contributions__contributor=main_user,
         state__in=STATES_WITH_RESULTS_CACHING
     ).distinct()
+    update_results_template_cache_of_evaluations(evaluations) # TODO only on main user? other user?
     for evaluation in evaluations:
         cache_results(evaluation)
 

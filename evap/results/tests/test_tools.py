@@ -16,26 +16,18 @@ from evap.staff.tools import merge_users
 
 
 class TestCalculateResults(TestCase):
-    def test_cache_results(self):
-        evaluation = baker.make(Evaluation, state='published')
 
+    def test_begin_evaluation_starts_caching(self):
+        evaluation = baker.make(Evaluation, state='approved')
         self.assertIsNone(caches['results'].get(get_collect_results_cache_key(evaluation)))
-
-        cache_results(evaluation)
-
-        self.assertIsNotNone(caches['results'].get(get_collect_results_cache_key(evaluation)))
-
-    def test_cache_unpublished_evaluation(self):
-        evaluation = baker.make(Evaluation, state='reviewed')
-        evaluation.publish()
+        evaluation.evaluation_begin()
         evaluation.save()
 
         self.assertIsNotNone(caches['results'].get(get_collect_results_cache_key(evaluation)))
 
-        evaluation.unpublish()
         evaluation.save()
 
-        self.assertIsNone(caches['results'].get(get_collect_results_cache_key(evaluation)))
+        self.assertIsNotNone(caches['results'].get(get_collect_results_cache_key(evaluation)))
 
     def test_calculation_unipolar_results(self):
         contributor1 = baker.make(UserProfile)

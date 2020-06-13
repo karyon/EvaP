@@ -17,7 +17,8 @@ from evap.student.tools import question_id
 
 from evap.results.tools import (calculate_average_distribution, distribution_to_grade,
                                 get_evaluations_with_course_result_attributes, get_single_result_rating_result,
-                                textanswers_visible_to, normalized_distribution)
+                                textanswers_visible_to, normalized_distribution, cache_results)
+from evap.results.views import update_results_template_cache_of_evaluations
 
 SUCCESS_MAGIC_STRING = 'vote submitted successfully'
 
@@ -151,6 +152,10 @@ def vote(request, evaluation_id):
                 evaluation.save()
 
         evaluation.evaluation_evaluated.send(sender=Evaluation, request=request, semester=evaluation.course.semester)
+
+        cache_results(evaluation)
+        update_results_template_cache_of_evaluations([evaluation])
+
 
     messages.success(request, _("Your vote was recorded."))
     return HttpResponse(SUCCESS_MAGIC_STRING)

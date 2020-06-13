@@ -10,11 +10,11 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, Group, PermissionsMixin
 from django.contrib.postgres.fields import ArrayField
-from django.core.cache import caches
 from django.core.exceptions import ValidationError
 from django.core.mail import EmailMessage
 from django.db import models, transaction, IntegrityError
 from django.db.models import Count, Q, Manager
+from django.db.models.signals import post_delete
 from django.dispatch import Signal, receiver
 from django.template import Context, Template
 from django.template.base import TemplateSyntaxError
@@ -303,6 +303,11 @@ class Course(models.Model):
     def __str__(self):
         return self.name
 
+    def save(self, *args, **kw):
+        super().save(*args, **kw)
+        from evap.results.views import update_results_template_cache_of_courses
+        update_results_template_cache_of_courses([self])
+
     def set_last_modified(self, modifying_user):
         self.last_modified_user = modifying_user
         self.last_modified_time = timezone.now()
@@ -426,20 +431,14 @@ class Evaluation(models.Model):
             # It's clear that results.models will need to reference evaluation.models' classes in ForeignKeys.
             # However, this method only makes sense as a method of Evaluation. Thus, we can't get rid of these imports
             # pylint: disable=import-outside-toplevel
-            from evap.results.tools import STATES_WITH_RESULTS_CACHING
-            if (self.state in STATES_WITH_RESULTS_CACHING
-                and self.state_change_source not in STATES_WITH_RESULTS_CACHING):
-                from evap.results.tools import cache_results
-                from evap.results.views import update_template_cache_of_published_evaluations_in_course
-                cache_results(self)
-                update_template_cache_of_published_evaluations_in_course(self.course)
-            if (self.state not in STATES_WITH_RESULTS_CACHING
-                and self.state_change_source in STATES_WITH_RESULTS_CACHING):
-                from evap.results.tools import get_collect_results_cache_key
-                from evap.results.views import delete_template_cache, update_template_cache_of_published_evaluations_in_course
-                caches['results'].delete(get_collect_results_cache_key(self))
-                delete_template_cache(self)
-                update_template_cache_of_published_evaluations_in_course(self.course)
+            from evap.results.tools import STATES_WITH_RESULTS_CACHING, cache_results
+            from evap.results.views import update_results_template_cache_of_courses, update_results_template_cache_of_evaluations
+            if self.state in STATES_WITH_RESULTS_CACHING:
+                if self.state_change_source not in STATES_WITH_RESULTS_CACHING:
+                    cache_results(self) # those states must have the results cached, even if there are no results!
+                    # TODO maybe start caching on first vote? could modify can_publish_average_grade. specialcase results detail view
+                update_results_template_cache_of_courses([self.course])
+                update_results_template_cache_of_evaluations([self])
 
     def set_last_modified(self, modifying_user):
         self.last_modified_user = modifying_user
@@ -781,6 +780,13 @@ def evaluation_state_change(instance, source, **_kwargs):
 @receiver(post_transition, sender=Evaluation)
 def log_state_transition(instance, name, source, target, **_kwargs):
     logger.info('Evaluation "{}" (id {}) moved from state "{}" to state "{}", caused by transition "{}".'.format(instance, instance.pk, source, target, name))
+
+
+@receiver(post_delete, sender=Evaluation)
+def update_results_template_cache_on_evaluation_delete(instance, *args, **kwargs):
+    from evap.results.views import update_results_template_cache_of_course_with_evaluations
+    # TODO this i could test
+    update_results_template_cache_of_course_with_evaluations(instance.course)
 
 
 class Contribution(models.Model):

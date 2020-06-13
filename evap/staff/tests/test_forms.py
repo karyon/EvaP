@@ -133,6 +133,7 @@ class UserFormTests(TestCase):
         baker.make(Contribution, contributor=contributor,
                    evaluation=evaluation)
 
+        # TODO check the fragment cache
         cache_results(evaluation)
         results_before = get_results(evaluation)
 
@@ -698,12 +699,13 @@ class EvaluationFormTests(TestCase):
         form_data = get_form_data_from_instance(EvaluationForm, evaluation)
         form = EvaluationForm(form_data, instance=evaluation, semester=semester)
         self.assertTrue(form.is_valid())
-        with patch('evap.results.views._delete_course_template_cache_impl') as delete_call, patch('evap.results.views.warm_up_template_cache') as warmup_call:
+        with patch('evap.staff.forms.update_results_template_cache_of_course_with_evaluations') as update_course_with_evaluations_mock, \
+            patch('evap.staff.forms.update_results_template_cache_of_evaluations') as update_evaluations_mock:
             # save without changes
             form.save()
             self.assertEqual(Evaluation.objects.get(pk=evaluation.pk).course, course1)
-            self.assertEqual(delete_call.call_count, 0)
-            self.assertEqual(warmup_call.call_count, 0)
+            self.assertEqual(update_course_with_evaluations_mock.call_count, 0)
+            self.assertEqual(update_evaluations_mock.call_count, 1)
 
             # change course and save
             form_data = get_form_data_from_instance(EvaluationForm, evaluation)
@@ -712,8 +714,8 @@ class EvaluationFormTests(TestCase):
             self.assertTrue(form.is_valid())
             form.save()
             self.assertEqual(Evaluation.objects.get(pk=evaluation.pk).course, course2)
-            self.assertEqual(delete_call.call_count, 2)
-            self.assertEqual(warmup_call.call_count, 2)
+            self.assertEqual(update_course_with_evaluations_mock.call_count, 2)
+            self.assertEqual(update_evaluations_mock.call_count, 1)
 
     def test_locked_questionnaire(self):
         """

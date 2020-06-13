@@ -13,6 +13,8 @@ from evap.evaluation.models import Course, Semester, EmailTemplate
 from evap.grades.models import GradeDocument
 from evap.grades.forms import GradeDocumentForm
 
+from evap.results.views import update_results_template_cache_of_evaluations
+
 
 @grade_publisher_required
 def index(request):
@@ -86,6 +88,9 @@ def on_grading_process_finished(course):
 
         EmailTemplate.send_participant_publish_notifications(evaluations)
         EmailTemplate.send_contributor_publish_notifications(evaluations)
+    else:
+        # there's this "grading process finished but results are not published" icon, so the cache must be updated
+        update_results_template_cache_of_evaluations(evaluations)
 
 
 @grade_publisher_required

@@ -17,8 +17,7 @@ from evap.evaluation.models import (Contribution, Course, CourseType, Degree, Em
                                     UserProfile)
 from evap.evaluation.tools import date_to_datetime
 from evap.results.tools import cache_results, STATES_WITH_RESULTS_CACHING
-from evap.results.views import (update_template_cache,
-                                update_template_cache_of_published_evaluations_in_course)
+from evap.results.views import (update_results_template_cache_of_evaluations, update_results_template_cache_of_course_with_evaluations, update_results_template_cache_of_courses)
 
 logger = logging.getLogger(__name__)
 
@@ -128,7 +127,7 @@ class SemesterForm(forms.ModelForm):
     def save(self, *args, **kwargs):
         semester = super().save(*args, **kwargs)
         if 'short_name_en' in self.changed_data or 'short_name_de' in self.changed_data:
-            update_template_cache(semester.evaluations.filter(state__in=STATES_WITH_RESULTS_CACHING))
+            update_results_template_cache_of_courses(semester.courses.all())
         return semester
 
 
@@ -153,7 +152,7 @@ class DegreeForm(forms.ModelForm):
     def save(self, *args, **kwargs):
         degree = super().save(*args, **kwargs)
         if "name_en" in self.changed_data or "name_de" in self.changed_data:
-            update_template_cache(Evaluation.objects.filter(state__in=STATES_WITH_RESULTS_CACHING, course__degrees__in=[degree]))
+            update_results_template_cache_of_courses(degree.courses.all())
         return degree
 
 
@@ -178,7 +177,7 @@ class CourseTypeForm(forms.ModelForm):
     def save(self, *args, **kwargs):
         course_type = super().save(*args, **kwargs)
         if "name_en" in self.changed_data or "name_de" in self.changed_data:
-            update_template_cache(Evaluation.objects.filter(state__in=STATES_WITH_RESULTS_CACHING, course__type=course_type))
+            update_results_template_cache_of_courses(course_type.courses.all())
         return course_type
 
 
@@ -320,10 +319,15 @@ class EvaluationForm(forms.ModelForm):
     def save(self, *args, **kw):
         evaluation = super().save(*args, **kw)
         evaluation.general_contribution.questionnaires.set(self.cleaned_data.get('general_questionnaires'))
-        if hasattr(self.instance, 'old_course'):
-            if self.instance.old_course != evaluation.course:
-                update_template_cache_of_published_evaluations_in_course(self.instance.old_course)
-                update_template_cache_of_published_evaluations_in_course(evaluation.course)
+
+        # TODO move to models?
+        if 'course' in self.changed_data and hasattr(self.instance, 'old_course'):
+            update_results_template_cache_of_course_with_evaluations(self.instance.old_course)
+        if 'course' in self.changed_data or 'weight' in self.changed_data:
+            update_results_template_cache_of_course_with_evaluations(evaluation.course)
+        else:
+            update_results_template_cache_of_evaluations([evaluation]) # this in particular should maybe go in to models
+
         return evaluation
 
 
@@ -415,10 +419,13 @@ class SingleResultForm(forms.ModelForm):
         evaluation.single_result_created()
         evaluation.save()
 
-        if hasattr(self.instance, 'old_course'):
-            if self.instance.old_course != evaluation.course:
-                update_template_cache_of_published_evaluations_in_course(self.instance.old_course)
-                update_template_cache_of_published_evaluations_in_course(evaluation.course)
+        # TODO move to models?
+        if 'course' in self.changed_data and hasattr(self.instance, 'old_course'):
+            update_results_template_cache_of_course_with_evaluations(self.instance.old_course)
+        if 'course' in self.changed_data or 'weight' in self.changed_data:
+            update_results_template_cache_of_course_with_evaluations(evaluation.course)
+        else:
+            update_results_template_cache_of_evaluations([evaluation])
 
         return evaluation
 

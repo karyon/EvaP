@@ -17,7 +17,8 @@ from evap.evaluation.tools import FileResponse
 from evap.results.exporters import TextAnswerExcelExporter
 from evap.results.tools import (get_results, calculate_average_distribution, distribution_to_grade,
                                 get_evaluations_with_course_result_attributes, get_single_result_rating_result,
-                                HeadingResult, TextResult, can_textanswer_be_seen_by, normalized_distribution, STATES_WITH_RESULTS_CACHING)
+                                HeadingResult, TextResult, can_textanswer_be_seen_by, normalized_distribution,
+                                STATES_WITH_RESULTS_CACHING)
 
 
 def get_course_result_template_fragment_cache_key(course_id, language):
@@ -28,43 +29,42 @@ def get_evaluation_result_template_fragment_cache_key(evaluation_id, language, l
     return make_template_fragment_key('evaluation_result_template_fragment', [evaluation_id, language, links_to_results_page])
 
 
-def delete_template_cache(evaluation):
-    assert evaluation.state not in STATES_WITH_RESULTS_CACHING
-    _delete_template_cache_impl(evaluation)
-
-
-def _delete_template_cache_impl(evaluation):
-    _delete_evaluation_template_cache_impl(evaluation)
-    _delete_course_template_cache_impl(evaluation.course)
-
-
-def _delete_evaluation_template_cache_impl(evaluation):
-    caches['results'].delete(get_evaluation_result_template_fragment_cache_key(evaluation.id, 'en', True))
-    caches['results'].delete(get_evaluation_result_template_fragment_cache_key(evaluation.id, 'en', False))
-    caches['results'].delete(get_evaluation_result_template_fragment_cache_key(evaluation.id, 'de', True))
-    caches['results'].delete(get_evaluation_result_template_fragment_cache_key(evaluation.id, 'de', False))
-
-
-def _delete_course_template_cache_impl(course):
-    caches['results'].delete(get_course_result_template_fragment_cache_key(course.id, 'en'))
-    caches['results'].delete(get_course_result_template_fragment_cache_key(course.id, 'de'))
-
-
-def warm_up_template_cache(evaluations):
-    evaluations = get_evaluations_with_course_result_attributes(get_evaluations_with_prefetched_data(evaluations))
+def update_results_template_cache_of_courses(courses):
+    if isinstance(courses, QuerySet):
+        courses = courses.prefetch_related('evaluations')
     current_language = translation.get_language()
-    courses_to_render = {evaluation.course for evaluation in evaluations if evaluation.course.evaluation_count > 1}
     try:
-        for course in courses_to_render:
+        for course in courses:
+            if len(course.evaluations.all()) == 1:
+                update_results_template_cache_of_evaluations(course.evaluations.all())
+                continue
+            if not any(evaluation.state in STATES_WITH_RESULTS_CACHING for evaluation in course.evaluations.all()):
+                continue
+            caches['results'].delete(get_course_result_template_fragment_cache_key(course.id, 'en'))
+            caches['results'].delete(get_course_result_template_fragment_cache_key(course.id, 'de'))
             translation.activate('en')
             get_template('results_index_course.html').render(dict(course=course))
             translation.activate('de')
             get_template('results_index_course.html').render(dict(course=course))
             assert get_course_result_template_fragment_cache_key(course.id, 'en') in caches['results']
             assert get_course_result_template_fragment_cache_key(course.id, 'de') in caches['results']
+    finally:
+        translation.activate(current_language)  # reset to previously set language to prevent unwanted side effects
+
+
+def update_results_template_cache_of_evaluations(evaluations):
+    # TODO multiple callers call with one evaluation. perhaps provide update_results_template_cache_of_evaluation (no plural) that converts to queryset?
+    evaluations = get_evaluations_with_course_result_attributes(get_evaluations_with_prefetched_data(evaluations))
+    current_language = translation.get_language()
+    try:
         for evaluation in evaluations:
-            assert evaluation.state in STATES_WITH_RESULTS_CACHING
+            if evaluation.state not in STATES_WITH_RESULTS_CACHING:
+                continue
             is_subentry = evaluation.course.evaluation_count > 1
+            caches['results'].delete(get_evaluation_result_template_fragment_cache_key(evaluation.id, 'en', True))
+            caches['results'].delete(get_evaluation_result_template_fragment_cache_key(evaluation.id, 'en', False))
+            caches['results'].delete(get_evaluation_result_template_fragment_cache_key(evaluation.id, 'de', True))
+            caches['results'].delete(get_evaluation_result_template_fragment_cache_key(evaluation.id, 'de', False))
             translation.activate('en')
             get_template('results_index_evaluation.html').render(dict(evaluation=evaluation, links_to_results_page=True, is_subentry=is_subentry))
             get_template('results_index_evaluation.html').render(dict(evaluation=evaluation, links_to_results_page=False, is_subentry=is_subentry))
@@ -79,19 +79,21 @@ def warm_up_template_cache(evaluations):
         translation.activate(current_language)  # reset to previously set language to prevent unwanted side effects
 
 
-def update_template_cache(evaluations):
-    for evaluation in evaluations:
-        assert evaluation.state in STATES_WITH_RESULTS_CACHING
-        _delete_template_cache_impl(evaluation)
-        warm_up_template_cache([evaluation])
+# TODO update template caches on grade changes
+# TODO investigate caching calculate_average_distribution
 
+# TODO document deletion:
+    # course: can only be deleted if it has no evaluations, so no results there
+    # evaluation: can only be deleted if no voters, so no results either
+    # same for collect_results
+    # once an evaluation is in_evaluation, it cannot go to previous states, so nothing to delete there either
 
-def update_template_cache_of_published_evaluations_in_course(course):
-    course_evaluations = course.evaluations.filter(state__in=STATES_WITH_RESULTS_CACHING)
-    for course_evaluation in course_evaluations:
-        _delete_evaluation_template_cache_impl(course_evaluation)
-    _delete_course_template_cache_impl(course)
-    warm_up_template_cache(course_evaluations)
+# TODO write tests
+
+def update_results_template_cache_of_course_with_evaluations(course):
+    update_results_template_cache_of_evaluations(course.evaluations.all())
+    if len(course.evaluations.all()) != 1:
+        update_results_template_cache_of_courses([course])
 
 
 def get_evaluations_with_prefetched_data(evaluations):
@@ -196,11 +198,6 @@ def evaluation_detail(request, semester_id, evaluation_id):
             for contribution_result in evaluation_result.contribution_results
             if contribution_result.contributor not in [None, view_as_user]
         ]
-
-    # if the results are not cached, we need to attach distribution
-    # information for rendering the distribution bar
-    if evaluation.state not in STATES_WITH_RESULTS_CACHING:
-        evaluation = get_evaluations_with_course_result_attributes(get_evaluations_with_prefetched_data([evaluation]))[0]
 
     is_responsible_or_contributor_or_delegate = evaluation.is_user_responsible_or_contributor_or_delegate(view_as_user)
 

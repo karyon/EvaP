@@ -20,6 +20,9 @@ GRADE_COLORS = {
 }
 
 
+STATES_WITH_RESULTS_CACHING = {'in_evaluation', 'evaluated', 'reviewed', 'published'}
+
+
 class EvaluationResult:
     def __init__(self, contribution_results):
         self.contribution_results = contribution_results
@@ -137,6 +140,7 @@ def cache_results(evaluation):
 def get_results(evaluation):
     cache_key = get_collect_results_cache_key(evaluation)
     result = caches['results'].get(cache_key)
+    # TODO that kinda defeats the purpose. perhaps email to the admins?
     if result is None:
         result = _collect_results_impl(evaluation)
     return result

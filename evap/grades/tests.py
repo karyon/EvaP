@@ -7,6 +7,7 @@ from django_webtest import WebTest
 from model_bakery import baker
 
 from evap.evaluation.models import Contribution, Course, Evaluation, Questionnaire, Semester, UserProfile
+from evap.results.tools import cache_results
 
 
 class GradeUploadTest(WebTest):
@@ -141,10 +142,12 @@ class GradeUploadTest(WebTest):
         evaluation.evaluation_end()
         evaluation.review_finished()
         evaluation.save()
+        cache_results(evaluation)
 
         self.assertFalse(evaluation.course.gets_no_grade_documents)
 
         response = self.app.post("/grades/toggle_no_grades", params={"course_id": evaluation.course.id}, user=self.grade_publisher)
+
         self.assertEqual(response.status_code, 200)
         evaluation = Evaluation.objects.get(id=evaluation.id)
         self.assertTrue(evaluation.course.gets_no_grade_documents)
@@ -156,6 +159,8 @@ class GradeUploadTest(WebTest):
         self.assertEqual(response.status_code, 200)
         evaluation = Evaluation.objects.get(id=evaluation.id)
         self.assertFalse(evaluation.course.gets_no_grade_documents)
+
+        # TODO test of that "grading process finished badge"
 
     def test_grade_document_download_after_archiving(self):
         # upload grade document

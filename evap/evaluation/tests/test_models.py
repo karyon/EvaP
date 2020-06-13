@@ -303,10 +303,10 @@ class TestEvaluations(WebTest):
         evaluation.unpublish()
         evaluation.save()
 
-        self.assertIsNone(caches['results'].get(get_evaluation_result_template_fragment_cache_key(evaluation.id, "en", True)))
-        self.assertIsNone(caches['results'].get(get_evaluation_result_template_fragment_cache_key(evaluation.id, "en", False)))
-        self.assertIsNone(caches['results'].get(get_evaluation_result_template_fragment_cache_key(evaluation.id, "de", True)))
-        self.assertIsNone(caches['results'].get(get_evaluation_result_template_fragment_cache_key(evaluation.id, "de", False)))
+        self.assertIsNotNone(caches['results'].get(get_evaluation_result_template_fragment_cache_key(evaluation.id, "en", True)))
+        self.assertIsNotNone(caches['results'].get(get_evaluation_result_template_fragment_cache_key(evaluation.id, "en", False)))
+        self.assertIsNotNone(caches['results'].get(get_evaluation_result_template_fragment_cache_key(evaluation.id, "de", True)))
+        self.assertIsNotNone(caches['results'].get(get_evaluation_result_template_fragment_cache_key(evaluation.id, "de", False)))
 
     # pylint: disable=invalid-name
     def assert_textanswer_review_state(
