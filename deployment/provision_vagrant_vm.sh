@@ -51,15 +51,26 @@ a2enmod expires
 cp $REPO_FOLDER/deployment/wsgi.template.conf /etc/apache2/mods-available/wsgi.load
 sed -i -e "s=\${ENV_FOLDER}=$ENV_FOLDER=" /etc/apache2/mods-available/wsgi.load # note this uses '=' as alternate delimiter
 a2enmod wsgi
+
+CRT_FILE="/home/localhost.crt"
+KEY_FILE="/home/localhost.key"
 cp $REPO_FOLDER/deployment/apache.template.conf /etc/apache2/sites-available/evap.conf
 sed -i -e "s=\${ENV_FOLDER}=$ENV_FOLDER=" /etc/apache2/sites-available/evap.conf
 sed -i -e "s=\${REPO_FOLDER}=$REPO_FOLDER=" /etc/apache2/sites-available/evap.conf
+sed -i -e "s=\${CRT_FILE}=$CRT_FILE=" /etc/apache2/sites-available/evap.conf
+sed -i -e "s=\${KEY_FILE}=$KEY_FILE=" /etc/apache2/sites-available/evap.conf
 a2ensite evap.conf
 a2dissite 000-default.conf
 # this comments in some line in some apache config file to fix the locale.
 # see https://github.com/e-valuation/EvaP/issues/626
 # and https://docs.djangoproject.com/en/dev/howto/deployment/wsgi/modwsgi/#if-you-get-a-unicodeencodeerror
 sed -i s,\#.\ /etc/default/locale,.\ /etc/default/locale,g /etc/apache2/envvars
+a2enmod http2
+a2enmod ssl
+openssl req -x509 -out $CRT_FILE -keyout $KEY_FILE \
+  -newkey rsa:2048 -nodes -sha256 \
+  -subj '/CN=localhost' -extensions EXT -config <( \
+   printf "[dn]\nCN=localhost\n[req]\ndistinguished_name = dn\n[EXT]\nsubjectAltName=DNS:localhost\nkeyUsage=digitalSignature\nextendedKeyUsage=serverAuth")
 systemctl reload apache2
 
 # auto cd into /$USER on login and activate venv
